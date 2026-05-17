@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-13T20:44:00.000Z",
+  "title": "Design System: Zabatly",
+  "extensions": {
+    "colorMeta": {
+      "midnight-navy": {
+        "role": "primary",
+        "displayName": "Midnight Navy",
+        "canonical": "oklch(30% 0.06 250)",
+        "tonalRamp": [
+          "#0f1623",
+          "#151e30",
+          "#1b2b44",
+          "#243a5a",
+          "#2d4a72",
+          "#3a5e90",
+          "#5a7eb0",
+          "#8aa2c8"
+        ]
+      },
+      "midnight-navy-deep": {
+        "role": "primary",
+        "displayName": "Midnight Navy Deep",
+        "canonical": "oklch(20% 0.04 250)",
+        "tonalRamp": [
+          "#070a10",
+          "#0f1623",
+          "#151e30",
+          "#1b2b44",
+          "#243a5a",
+          "#2d4a72",
+          "#3a5e90",
+          "#5a7eb0"
+        ]
+      },
+      "midnight-navy-light": {
+        "role": "primary",
+        "displayName": "Midnight Navy Light",
+        "canonical": "oklch(48% 0.08 250)",
+        "tonalRamp": [
+          "#1b2b44",
+          "#243a5a",
+          "#2d4a72",
+          "#3a5e90",
+          "#5a7eb0",
+          "#8aa2c8",
+          "#b8c8e0",
+          "#dce4f0"
+        ]
+      },
+      "desert-amber": {
+        "role": "secondary",
+        "displayName": "Desert Amber",
+        "canonical": "oklch(70% 0.15 75)",
+        "tonalRamp": [
+          "#3e1b09",
+          "#6e3619",
+          "#85411b",
+          "#a35319",
+          "#c4701b",
+          "#dd8f24",
+          "#e6a63c",
+          "#f3d99b"
+        ]
+      },
+      "desert-amber-bright": {
+        "role": "secondary",
+        "displayName": "Desert Amber Bright",
+        "canonical": "oklch(76% 0.14 75)",
+        "tonalRamp": [
+          "#6e3619",
+          "#85411b",
+          "#a35319",
+          "#c4701b",
+          "#dd8f24",
+          "#e6a63c",
+          "#f3d99b",
+          "#f9edcf"
+        ]
+      },
+      "desert-amber-muted": {
+        "role": "secondary",
+        "displayName": "Desert Amber Muted",
+        "canonical": "oklch(58% 0.14 60)",
+        "tonalRamp": [
+          "#3e1b09",
+          "#6e3619",
+          "#85411b",
+          "#a35319",
+          "#c4701b",
+          "#dd8f24",
+          "#e6a63c",
+          "#f3d99b"
+        ]
+      },
+      "sand-cream": {
+        "role": "neutral",
+        "displayName": "Sand Cream",
+        "canonical": "oklch(97.5% 0.007 80)",
+        "tonalRamp": [
+          "#2c2723",
+          "#534b43",
+          "#63594f",
+          "#8e8070",
+          "#b8aea0",
+          "#d4cdc1",
+          "#e6e1d9",
+          "#faf8f5"
+        ]
+      },
+      "warm-linen": {
+        "role": "neutral",
+        "displayName": "Warm Linen",
+        "canonical": "oklch(95% 0.008 80)",
+        "tonalRamp": [
+          "#2c2723",
+          "#534b43",
+          "#63594f",
+          "#8e8070",
+          "#b8aea0",
+          "#d4cdc1",
+          "#e6e1d9",
+          "#f2efea"
+        ]
+      },
+      "stone-border": {
+        "role": "neutral",
+        "displayName": "Stone Border",
+        "canonical": "oklch(90% 0.01 80)",
+        "tonalRamp": [
+          "#534b43",
+          "#63594f",
+          "#766a5d",
+          "#8e8070",
+          "#a49888",
+          "#b8aea0",
+          "#d4cdc1",
+          "#e6e1d9"
+        ]
+      },
+      "dusk-text": {
+        "role": "neutral",
+        "displayName": "Dusk Text",
+        "canonical": "oklch(28% 0.015 60)",
+        "tonalRamp": [
+          "#1a1613",
+          "#2c2723",
+          "#3d3630",
+          "#534b43",
+          "#63594f",
+          "#766a5d",
+          "#8e8070",
+          "#a49888"
+        ]
+      },
+      "ash-secondary": {
+        "role": "neutral",
+        "displayName": "Ash Secondary",
+        "canonical": "oklch(68% 0.02 60)",
+        "tonalRamp": [
+          "#534b43",
+          "#63594f",
+          "#766a5d",
+          "#8e8070",
+          "#a49888",
+          "#b8aea0",
+          "#d4cdc1",
+          "#e6e1d9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headlines on brand pages. Tight leading, confident presence."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headers on brand pages and page titles on product surfaces."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, vehicle names, section headings within product pages, dashboard page headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "All running text. Max width 65-75ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Navigation items, metadata, form labels, sidebar items, context strip text, data table cell text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "chat-panel",
+        "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)",
+        "purpose": "Structural anchor for the floating chat panel. Distinguishes it from the page beneath."
+      },
+      {
+        "name": "navbar-blur",
+        "value": "backdrop-filter: blur(12px)",
+        "purpose": "Persistent blur on the sticky navbar. The only always-visible elevation on product surfaces."
+      },
+      {
+        "name": "vehicle-card-hover",
+        "value": "0 1px 3px rgba(0,0,0,0.06)",
+        "purpose": "Subtle lift on vehicle card hover. Appears only as state response."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-quart",
+        "value": "cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Default easing for all UI transitions. Snappy deceleration."
+      },
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Mobile sidebar slide-in and overlay transitions. Faster deceleration for spatial movement."
+      },
+      {
+        "name": "scroll-reveal",
+        "value": "600ms ease-out-quart, translateY(20px) to translateY(0), opacity 0 to 1",
+        "purpose": "Entry animation for landing page sections. Staggered at 80ms increments."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action button used for bookings, sign-in, dashboard CTAs, and accept actions.",
+      "html": "<button class=\"ds-btn-primary\">Book Now</button>",
+      "css": ".ds-btn-primary { background: #1b2b44; color: #fff; padding: 12px 28px; font-family: Manrope, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s cubic-bezier(0.25, 1, 0.5, 1); } .ds-btn-primary:hover { background: #0f1623; } .ds-btn-primary:focus-visible { outline: 2px solid #3a5e90; outline-offset: 2px; }"
+    },
+    {
+      "name": "Compact Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Smaller primary button for inline actions in dashboard rows and action bars.",
+      "html": "<button class=\"ds-btn-compact\">Accept</button>",
+      "css": ".ds-btn-compact { background: #1b2b44; color: #fff; padding: 6px 14px; font-family: Manrope, system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s cubic-bezier(0.25, 1, 0.5, 1); } .ds-btn-compact:hover { background: #0f1623; } .ds-btn-compact:focus-visible { outline: 2px solid #3a5e90; outline-offset: 2px; }"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Secondary hero CTA with border that fills on hover.",
+      "html": "<button class=\"ds-btn-outlined\">Explore Fleet</button>",
+      "css": ".ds-btn-outlined { background: transparent; color: #1b2b44; padding: 12px 28px; font-family: Manrope, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; border: 2px solid #1b2b44; border-radius: 6px; cursor: pointer; transition: background 0.15s cubic-bezier(0.25, 1, 0.5, 1), color 0.15s cubic-bezier(0.25, 1, 0.5, 1); } .ds-btn-outlined:hover { background: #1b2b44; color: #fff; } .ds-btn-outlined:focus-visible { outline: 2px solid #3a5e90; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Secondary dashboard action with sand background. Used for Quick Actions and Decline.",
+      "html": "<button class=\"ds-btn-ghost\">Browse Fleet <svg width=\"14\" height=\"14\" viewBox=\"0 0 14 14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 2.5 9.5 7 5 11.5\"/></svg></button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; background: #f2efea; color: #63594f; padding: 12px 16px; font-family: Manrope, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; border: 1px solid #e6e1d9; border-radius: 6px; cursor: pointer; transition: background 0.15s cubic-bezier(0.25, 1, 0.5, 1); width: 100%; } .ds-btn-ghost:hover { background: rgba(214, 207, 197, 0.6); } .ds-btn-ghost:focus-visible { outline: 2px solid #3a5e90; outline-offset: 2px; }"
+    },
+    {
+      "name": "Signal Button",
+      "kind": "button",
+      "refersTo": "button-signal",
+      "description": "Amber CTA for verification-required actions and host listing.",
+      "html": "<button class=\"ds-btn-signal\">List Your Vehicle</button>",
+      "css": ".ds-btn-signal { background: #dd8f24; color: #0f1623; padding: 12px 28px; font-family: Manrope, system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; border: none; border-radius: 6px; cursor: pointer; transition: background 0.15s cubic-bezier(0.25, 1, 0.5, 1); } .ds-btn-signal:hover { background: #c4701b; } .ds-btn-signal:focus-visible { outline: 2px solid #dd8f24; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Badge (Active)",
+      "kind": "chip",
+      "refersTo": "status-badge-active",
+      "description": "Tinted pill for active/online/verified states.",
+      "html": "<span class=\"ds-badge-active\">active</span>",
+      "css": ".ds-badge-active { display: inline-block; padding: 2px 8px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 6px; font-family: Manrope, system-ui, sans-serif; font-size: 0.7rem; font-weight: 600; text-transform: capitalize; }"
+    },
+    {
+      "name": "Status Badge (Pending)",
+      "kind": "chip",
+      "refersTo": "status-badge-pending",
+      "description": "Tinted pill for pending/warning states using the signal palette.",
+      "html": "<span class=\"ds-badge-pending\">pending</span>",
+      "css": ".ds-badge-pending { display: inline-block; padding: 2px 8px; background: #fdf8ed; color: #a35319; border: 1px solid #f3d99b; border-radius: 6px; font-family: Manrope, system-ui, sans-serif; font-size: 0.7rem; font-weight: 600; text-transform: capitalize; }"
+    },
+    {
+      "name": "Status Badge (Completed)",
+      "kind": "chip",
+      "refersTo": "status-badge-completed",
+      "description": "Tinted pill for completed/resolved states using the primary palette.",
+      "html": "<span class=\"ds-badge-completed\">completed</span>",
+      "css": ".ds-badge-completed { display: inline-block; padding: 2px 8px; background: #eef2f7; color: #3a5e90; border: 1px solid #b8c8e0; border-radius: 6px; font-family: Manrope, system-ui, sans-serif; font-size: 0.7rem; font-weight: 600; text-transform: capitalize; }"
+    },
+    {
+      "name": "Sidebar Nav Item",
+      "kind": "nav",
+      "refersTo": "sidebar-item",
+      "description": "Navigation item inside the Dashboard Shell sidebar.",
+      "html": "<button class=\"ds-sidebar-item\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"9\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"2\" y=\"9\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"9\" y=\"9\" width=\"5\" height=\"5\" rx=\"1\"/></svg><span>Overview</span></button>",
+      "css": ".ds-sidebar-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: transparent; color: #8aa2c8; font-family: Manrope, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; width: 100%; text-align: left; transition: color 0.15s, background 0.15s; } .ds-sidebar-item:hover { color: #fff; background: rgba(255,255,255,0.05); } .ds-sidebar-item:focus-visible { outline: 2px solid #3a5e90; outline-offset: -2px; }"
+    },
+    {
+      "name": "Sidebar Nav Item (Active)",
+      "kind": "nav",
+      "refersTo": "sidebar-item-active",
+      "description": "Active/selected state of the sidebar navigation item.",
+      "html": "<button class=\"ds-sidebar-item-active\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"9\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"2\" y=\"9\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"9\" y=\"9\" width=\"5\" height=\"5\" rx=\"1\"/></svg><span>Overview</span></button>",
+      "css": ".ds-sidebar-item-active { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.12); color: #fff; font-family: Manrope, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; border: none; border-radius: 6px; cursor: pointer; width: 100%; text-align: left; }"
+    },
+    {
+      "name": "Product Input",
+      "kind": "input",
+      "refersTo": "input-product",
+      "description": "Standard input field for product surfaces (dashboard forms, add vehicle, profile).",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\">Daily Rate (EGP)</label><input class=\"ds-input\" type=\"number\" value=\"200\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; } .ds-label { font-family: Manrope, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; color: #766a5d; margin-bottom: 6px; } .ds-input { background: #f2efea; border: 1px solid #e6e1d9; border-radius: 6px; padding: 10px 12px; font-family: Manrope, system-ui, sans-serif; font-size: 0.875rem; color: #2c2723; transition: border-color 0.15s, box-shadow 0.15s; } .ds-input::placeholder { color: #b8aea0; } .ds-input:focus { outline: none; border-color: #3a5e90; box-shadow: 0 0 0 1px #3a5e90; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Confident Companion",
+    "overview": "Zabatly's interface is a reliable friend who knows cars, knows the city, and sorts everything out without making you ask twice. Warm without being cute, precise without being cold, smart without showing off. Every screen communicates competence through clarity: the platform already knows what you need and stays one step ahead.\n\nThe visual system uses committed navy and warm amber across a sand-tinted canvas. Manrope provides clean, confident typography with just enough warmth. Cairo handles Arabic display text with thick, assured strokes. Motion is responsive: transitions give feedback, nothing choreographs itself for spectacle.\n\nProduct surfaces share a consistent shell: a fixed 224px Midnight Navy sidebar on desktop, a slide-in overlay on mobile, a context strip for live status, and a sand-tinted content area. Data is presented in flat table rows, not card grids. Metrics use tiled strips, not hero-metric cards. Status is communicated through tinted badge pills.",
+    "keyCharacteristics": [
+      "Confident, not loud. The interface leads; it doesn't hedge.",
+      "Warm, not cute. Tinted neutrals, approachable spacing. No mascots.",
+      "Smart, not showy. AI is embedded naturally, never spotlighted.",
+      "Egyptian roots, global craft. Local character without cliches.",
+      "Tactile and firm. Clear shapes, immediate feedback, no ambiguity.",
+      "Dense but calm. Dashboards show useful data without overwhelming."
+    ],
+    "rules": [
+      { "name": "The Committed Navy Rule", "body": "Midnight Navy is not a timid accent. It appears on primary buttons, the navbar login button, active filter pills, booking CTAs, active tabs, key headers, the sidebar, and the hero heading. If a screen has no navy, something is missing.", "section": "colors" },
+      { "name": "The Warm Neutral Rule", "body": "No pure grays. Every neutral carries a warm tint toward sand/amber. Pure #000 and #fff are forbidden.", "section": "colors" },
+      { "name": "The Selection Rule", "body": "Text selection uses Midnight Navy Light (#b8c8e0) background with Midnight Navy Deep (#0f1623) text.", "section": "colors" },
+      { "name": "The Status Tint Rule", "body": "Status is always communicated through background-tinted pills, never through colored text alone or colored borders on containers. The tint is role-specific: green for live, amber for pending, navy for resolved, sand for inactive.", "section": "colors" },
+      { "name": "The No-Shout Rule", "body": "Uppercase is reserved for filter section headings, spec labels, footer category headers, metric tile labels, data table header labels, and sidebar section dividers. Never on headings, never on buttons. Always paired with wide tracking (0.04em-0.08em) and semibold weight at small sizes (0.65rem-0.7rem).", "section": "typography" },
+      { "name": "The Cairo-Only Rule", "body": "All Arabic text uses Cairo, never system-ui or Manrope. This includes the navbar logo, circular badge, hero overlay, auth page brand motifs, sidebar logo, and any future Arabic copy.", "section": "typography" },
+      { "name": "The Tabular-Nums Rule", "body": "All numeric values in data tables, metric tiles, prices, and earnings use font-variant-numeric: tabular-nums so columns align precisely. No proportional figures in data contexts.", "section": "typography" },
+      { "name": "The Flat-at-Rest Rule", "body": "Surfaces are flat at rest. Shadows appear only as state response (hover, focus, elevation change). If a shadow is visible on page load, justify it or remove it. The navbar's blur and the chat panel's shadow are the two exceptions.", "section": "elevation" },
+      { "name": "The Three-Layer Rule", "body": "Product surfaces use exactly three tonal layers for spatial hierarchy: Midnight Navy (sidebar, 224px), Warm Linen (context strip, metadata headers), Sand Cream (content area). No additional background colors needed for depth.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Midnight Navy on every screen's primary action. Consistency builds recognition.",
+      "Do tint all neutral surfaces warm. The warmth is subliminal but critical.",
+      "Do use Cairo for all Arabic text, including branding overlays, the circular badge, and the navbar logo.",
+      "Do write UI copy in casual English: short sentences, simple words, like texting a reliable friend.",
+      "Do embed AI recommendations naturally. A small \"Recommended\" badge is enough; no explanatory text needed.",
+      "Do show real vehicle photos from the API, verified badges, and transparent pricing. Trust through clarity.",
+      "Do respect prefers-reduced-motion. Moderate animation is default; reduced-motion users get instant state changes.",
+      "Do use ease-out-quart (cubic-bezier(0.25, 1, 0.5, 1)) for all UI transitions.",
+      "Do keep spacing tight and purposeful. No large empty gaps between sections.",
+      "Do use inline error banners instead of alert() for form errors and action failures.",
+      "Do use skeleton loading states (matching page structure) instead of centered spinners.",
+      "Do use the split-layout pattern (brand image + form) for authentication pages.",
+      "Do use a left sidebar for filters on browsing surfaces, not horizontal pill bars.",
+      "Do use the Dashboard Shell (sidebar + context strip + content area) for all authenticated product surfaces.",
+      "Do present tabular data in flat table rows with a Warm Linen header row and sand-100 dividers.",
+      "Do use Metric Strips (gap-px tiles in a bordered frame) for numeric summaries.",
+      "Do use Status Badges (tinted pills) for every status indicator.",
+      "Do use tabular-nums on all numeric values in data contexts.",
+      "Do use inline SVG icons at 16x16px with 1.5 stroke width in the sidebar and action rows.",
+      "Do keep empty states centered, one-sentence, and actionable with an optional CTA button.",
+      "Do show Accept/Decline actions inline in request rows, not in modals or separate pages."
+    ],
+    "donts": [
+      "Don't use boring/generic startup templates. No interchangeable hero sections with stock photos.",
+      "Don't use childish/cartoonish elements. No mascots, no candy colors, no excessive illustrations.",
+      "Don't use government/bureaucratic UI. No stiff forms, no formal language, no dated layouts.",
+      "Don't clone ride-hailing apps. Zabatly is not an Uber/Careem skin.",
+      "Don't use identical card grids. Vary the rhythm.",
+      "Don't use gradient text, side-stripe borders (>1px colored accent), or glassmorphism as decoration.",
+      "Don't use pure #000 or #fff. Tint toward brand warmth.",
+      "Don't spotlight AI features with sparkle icons, purple gradients, or \"Powered by AI\" labels.",
+      "Don't use em dashes in any UI copy.",
+      "Don't use system-ui or Manrope for Arabic text. Cairo only.",
+      "Don't use emoji as UI icons. Use inline SVGs or text.",
+      "Don't use pill-shaped buttons (fully rounded). Subtle (6px) radius only.",
+      "Don't use old blue/slate/indigo Tailwind defaults. The palette is sand/primary/signal exclusively.",
+      "Don't wrap forms or content in heavy card containers with large shadows. Flat at rest.",
+      "Don't wrap individual data rows in cards. Use flat table rows with dividers instead.",
+      "Don't use hero-metric cards for dashboard metrics. Use the Metric Strip pattern.",
+      "Don't use modals for accept/decline, status changes, or quick actions. Inline patterns first.",
+      "Don't use colored left-border stripes on alerts or status indicators. Use background tints instead.",
+      "Don't use different sidebar widths or backgrounds across product surfaces. 224px Midnight Navy is universal.",
+      "Don't mix status badge color mappings. Green=active, signal=pending, navy=completed, sand=neutral, red=error.",
+      "Don't add dark mode classes. The system is light-only."
+    ]
+  }
+}

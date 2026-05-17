@@ -1,0 +1,54 @@
+# Environment & secrets
+server/.env
+server/.env.*
+*.env
+*.env.*
+!*.env.example
+!server/.env.example
+
+# Dependencies
+node_modules/
+server/node_modules/
+client/node_modules/
+
+# Build output
+client/dist/
+client/dist-ssr/
+build/
+dist/
+
+# User uploads (KYC documents — never commit)
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Python OCR service
+server/ocr_service/__pycache__/
+server/ocr_service/**/__pycache__/
+server/ocr_service/.venv/
+server/ocr_service/venv/
+*.pyc
+.pytest_cache/
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS & editors
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local / tooling
+*.local
+coverage/
+.cache/
+.impeccable/live/
