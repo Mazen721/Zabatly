@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { API } from '../config/api';
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
 
@@ -45,7 +46,7 @@ export default function Register() {
           .map((item) => item.trim())
           .filter(Boolean);
 
-      const { data } = await axios.post('http://localhost:5000/api/auth/register', {
+      const { data } = await axios.post(`${API}/api/auth/register`, {
         name,
         email,
         password,

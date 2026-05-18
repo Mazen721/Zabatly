@@ -1,37 +1,38 @@
+const cloudinary = require('../config/cloudinary.js');
 const multer = require('multer');
-const path = require('path');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// 1. Storage Configuration: Where to save the files?
-const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    // Save to the 'uploads' folder in the root of server
-    cb(null, 'uploads/');
-  },
-  filename(req, file, cb) {
-    // Rename file to: fieldname-date.extension (to avoid duplicates)
-    cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
-  }
-});
+const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
-// 2. File Filter: Only allow Images
-function checkFileType(file, cb) {
-  const filetypes = /jpg|jpeg|png|webp/;
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = filetypes.test(file.mimetype);
+/** Cloudinary-side guard (multer still filters by MIME first). JPEG is stored as jpg. */
+const ALLOWED_CLOUDINARY_FORMATS = ['jpg', 'png', 'webp'];
 
-  if (extname && mimetype) {
+function imageFileFilter(req, file, cb) {
+  if (ALLOWED_IMAGE_MIMES.has(file.mimetype)) {
     return cb(null, true);
-  } else {
-    cb('Error: Images Only!');
   }
+  cb(new Error('Only JPEG, PNG, and WebP images are allowed.'));
 }
 
-// 3. The actual middleware function
-const upload = multer({
-  storage: storage,
-  fileFilter: function (req, file, cb) {
-    checkFileType(file, cb);
-  },
-});
+function createUploader(folder) {
+  const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+      folder,
+      allowed_formats: ALLOWED_CLOUDINARY_FORMATS,
+    },
+  });
+  return multer({ storage, fileFilter: imageFileFilter });
+}
 
-module.exports = upload;
+const uploadVehicleImages = createUploader('zabatly/vehicles').array('images', 10);
+const uploadProfilePhoto = createUploader('zabatly/profiles').single('profilePhoto');
+const uploadKycDocument = createUploader('zabatly/kyc').single('file');
+const uploadPaymentProof = createUploader('zabatly/payments').single('paymentProof');
+
+module.exports = {
+  uploadVehicleImages,
+  uploadProfilePhoto,
+  uploadKycDocument,
+  uploadPaymentProof,
+};

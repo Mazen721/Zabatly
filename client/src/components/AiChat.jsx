@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-
-const API = 'http://localhost:5000';
+import { API } from '../config/api';
 
 function ChatWindow({ isFullPage = false, onClose = null }) {
   const [input, setInput] = useState('');

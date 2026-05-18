@@ -3,12 +3,11 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import DashboardShell from './DashboardShell';
 import PaymentProofLink from '../PaymentProofLink';
-
-const API = 'http://localhost:5000';
+import { API } from '../../config/api';
 
 const getImg = (v) =>
   v?.images?.length > 0
-    ? `${API}${v.images[0]}`
+    ? v.images[0]
     : 'https://placehold.co/100x75/f2efea/a49888?text=No+Photo';
 
 const statusColors = {
@@ -464,9 +463,9 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                       <StatusBadge status={displayStatus(b)} />
                       <div className="space-y-1">
                         <span className="block text-[0.8125rem] font-medium text-sand-700">
-                          {paymentLabels[b.paymentMethod] || 'Not set'}
+                          {paymentLabels[b.payment?.method] || 'Not set'}
                         </span>
-                        <PaymentProofLink path={b.paymentProof} />
+                        <PaymentProofLink path={b.payment?.proofUrl} />
                       </div>
                       <span className="text-[0.875rem] font-semibold text-sand-900 md:text-right tabular-nums">
                         {b.totalPrice?.toLocaleString() || '—'} EGP

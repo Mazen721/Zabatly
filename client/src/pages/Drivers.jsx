@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
-const API_BASE = 'http://localhost:5000';
+import { API } from '../config/api';
 
 function getInitials(name = 'Driver') {
   return name
@@ -14,9 +13,7 @@ function getInitials(name = 'Driver') {
 }
 
 function getDriverPhoto(driver) {
-  if (!driver?.profilePicture) return null;
-  if (driver.profilePicture.startsWith('http')) return driver.profilePicture;
-  return `${API_BASE}${driver.profilePicture}`;
+  return driver?.profilePicture || null;
 }
 
 function formatRating(rating) {
@@ -204,7 +201,7 @@ export default function Drivers() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/api/users/drivers`);
+        const { data } = await axios.get(`${API}/api/users/drivers`);
         setDrivers(data);
       } catch {
         setError('Could not load drivers. Please try again.');
@@ -304,13 +301,14 @@ export default function Drivers() {
       setSubmitting(true);
       setRouteError('');
       const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-      await axios.post(`${API_BASE}/api/bookings`, {
+      await axios.post(`${API}/api/bookings`, {
         driver: selectedDriver._id,
         renter: userInfo._id,
         routeDescription: route,
         totalPrice: selectedDriver.dailyRate || 200,
         startDate: new Date(),
         endDate: new Date(),
+        paymentMethod: 'card',
       }, config);
 
       setSelectedDriver(null);

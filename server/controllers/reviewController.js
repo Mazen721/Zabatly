@@ -58,7 +58,7 @@ const createReview = async (req, res) => {
 const getVehicleReviews = async (req, res) => {
   try {
     const reviews = await Review.find({ targetVehicle: req.params.vehicleId })
-                                .populate('author', 'name profilePicture');
+                                .populate('author', 'name profilePicture profilePhoto');
     res.json(reviews);
   } catch (error) {
     res.status(500).json({ message: 'Server Error' });

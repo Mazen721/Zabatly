@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DashboardShell from '../components/dashboard/DashboardShell';
 import PaymentProofLink from '../components/PaymentProofLink';
-
-const API = 'http://localhost:5000';
+import { API } from '../config/api';
 
 const StatusBadge = ({ status }) => {
   const map = {
@@ -222,10 +221,13 @@ export default function AdminDashboard() {
 
   const getDocImage = (item) => {
     const path =
+      item.identity_document?.document_url ||
+      item.driving_license?.document_url ||
+      item.car_license?.document_url ||
       item.identity_document?.extracted_data?.image_url ||
       item.driving_license?.extracted_data?.image_url ||
       item.car_license?.extracted_data?.image_url;
-    return path ? `${API}${path}` : null;
+    return path || null;
   };
 
   const renderVerificationItem = (item, type) => {
@@ -497,7 +499,7 @@ export default function AdminDashboard() {
                   <StatusBadge status={item.status} />
                   <span className="space-y-1 font-semibold text-sand-900 tabular-nums lg:text-right">
                     <span className="block">{money(item.totalPrice)}</span>
-                    <PaymentProofLink path={item.paymentProof} />
+                    <PaymentProofLink path={item.payment?.proofUrl} />
                   </span>
                 </div>
               ))}

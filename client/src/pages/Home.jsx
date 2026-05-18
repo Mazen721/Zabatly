@@ -1,6 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { API } from '../config/api';
+import {
+  getFilterCityOptions,
+  getVehicleAreaLabel,
+  getVehicleExactAddress,
+} from '../data/egyptLocations';
 
 const TYPES = [
   { value: 'all', label: 'All types' },
@@ -41,7 +47,7 @@ function ImageCarousel({ images, alt }) {
   const prev = (e) => { e.preventDefault(); e.stopPropagation(); setIdx((i) => (i === 0 ? images.length - 1 : i - 1)); setErr(false); };
   const next = (e) => { e.preventDefault(); e.stopPropagation(); setIdx((i) => (i === images.length - 1 ? 0 : i + 1)); setErr(false); };
 
-  const src = !err && images?.length > 0 ? `http://localhost:5000${images[idx]}` : null;
+  const src = !err && images?.length > 0 ? images[idx] : null;
 
   return (
     <div className="relative aspect-[4/3] overflow-hidden bg-sand-100 group/img">
@@ -117,7 +123,10 @@ function VehicleCard({ vehicle, recommended }) {
         <div className="flex justify-between items-start gap-2 mb-2">
           <div className="min-w-0">
             <h3 className="text-[0.95rem] font-semibold text-sand-950 truncate leading-tight">{vehicle.make} {vehicle.model}</h3>
-            <p className="text-[0.75rem] text-sand-500 mt-0.5 truncate">{vehicle.address || 'Alexandria'}</p>
+            <p className="text-[0.75rem] font-medium text-sand-600 mt-0.5 truncate">{getVehicleAreaLabel(vehicle)}</p>
+            {getVehicleExactAddress(vehicle) && (
+              <p className="text-[0.7rem] text-sand-400 truncate">{getVehicleExactAddress(vehicle)}</p>
+            )}
           </div>
           <div className="text-right shrink-0">
             <span className="text-[0.95rem] font-bold text-primary-800">{vehicle.price_per_day}</span>
@@ -176,6 +185,36 @@ function RadioGroup({ options, value, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function CitySelect({ listed, others, value, onChange }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors"
+    >
+      <option value="all">Any city</option>
+      {listed.length > 0 && (
+        <optgroup label="Cities with listings">
+          {listed.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {others.length > 0 && (
+        <optgroup label="All cities">
+          {others.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
   );
 }
 
@@ -238,7 +277,7 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/vehicles');
+        const { data } = await axios.get(`${API}/api/vehicles`);
         setVehicles(data);
       } catch {
         setError('Could not load vehicles. Please try again.');
@@ -248,14 +287,7 @@ export default function Home() {
     })();
   }, []);
 
-  const locations = useMemo(() => {
-    const set = new Set();
-    vehicles.forEach((v) => {
-      const loc = v.address || v.location?.city;
-      if (loc) set.add(loc);
-    });
-    return [{ value: 'all', label: 'Any location' }, ...Array.from(set).map((l) => ({ value: l, label: l }))];
-  }, [vehicles]);
+  const cityOptions = useMemo(() => getFilterCityOptions(vehicles), [vehicles]);
 
   const filtered = useMemo(() => {
     return vehicles.filter((v) => {
@@ -267,7 +299,7 @@ export default function Home() {
       if (transmissionFilter !== 'all' && v.transmission !== transmissionFilter) return false;
       if (!matchPrice(v.price_per_day, priceRange)) return false;
       if (locationFilter !== 'all') {
-        if ((v.address || v.location?.city || '') !== locationFilter) return false;
+        if ((v.city || '') !== locationFilter) return false;
       }
       return true;
     });
@@ -314,8 +346,13 @@ export default function Home() {
         <RadioGroup options={TRANSMISSIONS} value={transmissionFilter} onChange={setTransmissionFilter} />
       </FilterSection>
 
-      <FilterSection title="Location">
-        <RadioGroup options={locations} value={locationFilter} onChange={setLocationFilter} />
+      <FilterSection title="City">
+        <CitySelect
+          listed={cityOptions.listed}
+          others={cityOptions.others}
+          value={locationFilter}
+          onChange={setLocationFilter}
+        />
       </FilterSection>
 
       {activeCount > 0 && (

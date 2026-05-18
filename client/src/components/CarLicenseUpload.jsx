@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { API } from '../config/api';
 
 const CarLicenseUpload = ({ vehicleId, onVerificationSuccess }) => {
   const [file, setFile] = useState(null);
@@ -29,7 +30,7 @@ const CarLicenseUpload = ({ vehicleId, onVerificationSuccess }) => {
         },
       };
 
-      await axios.post('http://localhost:5000/api/kyc/verify', formData, config);
+      await axios.post(`${API}/api/users/kyc/verify`, formData, config);
       
       setSuccess(true);
       if (onVerificationSuccess) onVerificationSuccess(); // Trigger parent component to move forward

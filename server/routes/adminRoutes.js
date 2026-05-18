@@ -5,6 +5,7 @@ const Vehicle = require('../models/vehicle');
 const Booking = require('../models/booking');
 const Review = require('../models/Review');
 const { protect } = require('../middleware/authMiddleware');
+const { attachPaymentsToBookings } = require('../controllers/paymentController');
 
 const adminGuard = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
@@ -94,7 +95,9 @@ router.get('/overview', protect, adminGuard, async (req, res) => {
       },
     };
 
-    res.json({ stats, users, vehicles, bookings, reviews });
+    const bookingsWithPayments = await attachPaymentsToBookings(bookings);
+
+    res.json({ stats, users, vehicles, bookings: bookingsWithPayments, reviews });
   } catch (error) {
     console.error('Admin overview error:', error);
     res.status(500).json({ message: 'Server Error' });

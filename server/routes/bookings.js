@@ -5,13 +5,13 @@ const router = express.Router();
 const { createBooking, getMyBookings, updateBookingStatus, finishRide, checkVehicleAvailability } = require('../controllers/bookingController');
 const { protect } = require('../middleware/authMiddleware');
 const { requireVerifiedKyc } = require('../middleware/kycMiddleware');
-const upload = require('../middleware/uploadMiddleware');
+const { uploadPaymentProof } = require('../middleware/uploadMiddleware');
 
 // Public route to check reserved vehicle dates
 router.get('/availability', checkVehicleAvailability);
 
 // Route to create a new booking
-router.post('/', protect, upload.single('paymentProof'), createBooking);
+router.post('/', protect, uploadPaymentProof, createBooking);
 
 // Route to get all bookings for the logged-in user (Renter, Owner, or Driver)
 router.get('/', protect, getMyBookings);

@@ -13,17 +13,11 @@ const bookingSchema = new mongoose.Schema({
   startDate: { type: Date, default: Date.now },
   endDate: { type: Date },
   totalPrice: { type: Number, default: 0 },
-  paymentMethod: {
-    type: String,
-    enum: ['card', 'vodafone_cash', 'instapay', null],
-    default: null,
-  },
   paymentStatus: {
     type: String,
     enum: ['unpaid', 'paid'],
     default: 'unpaid',
   },
-  paymentProof: { type: String, default: '' },
   status: { 
     type: String, 
     enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'expired'], 

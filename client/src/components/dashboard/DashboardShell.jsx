@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
-const API = 'http://localhost:5000';
 
 function getProfilePictureUrl(path) {
   if (!path) return null;
-  return path.startsWith('http') ? path : `${API}${path}`;
+  return path;
 }
 
 function ProfileAvatar({ user, size = 'sm' }) {

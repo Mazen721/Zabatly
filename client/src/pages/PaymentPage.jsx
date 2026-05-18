@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
-const API = 'http://localhost:5000';
+import { API } from '../config/api';
 const VODAFONE_NUMBER = '01090923550';
 const INSTAPAY_ID = 'mazen721@instapay';
 
@@ -23,7 +22,7 @@ const formatDate = (date) =>
 
 const getImage = (vehicle) =>
   vehicle?.images?.length > 0
-    ? `${API}${vehicle.images[0]}`
+    ? vehicle.images[0]
     : 'https://placehold.co/320x220/f2efea/a49888?text=Zabatly';
 
 const formatCardNumber = (value) =>

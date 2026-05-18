@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { API } from '../config/api';
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
 
@@ -20,7 +21,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await axios.post('http://localhost:5000/api/auth/login', formData);
+      const { data } = await axios.post(`${API}/api/auth/login`, formData);
       localStorage.setItem('userInfo', JSON.stringify(data));
       navigate('/');
     } catch (err) {

@@ -31,6 +31,8 @@ const vehicleSchema = new mongoose.Schema({
   // ✅ FIX 3: Changed to Boolean because frontend sends a true/false checkbox value
   ac: { type: Boolean, required: true }, 
   description: { type: String, required: true },
+  governorate: { type: String, default: '' },
+  city: { type: String, default: '' },
   address: { type: String, required: true },
   location: {
     lat: { type: Number, required: true },
@@ -52,6 +54,7 @@ const vehicleSchema = new mongoose.Schema({
   car_license: {
     plate_number: { type: String, default: null },
     chassis_number: { type: String, default: null },
+    document_url: { type: String, default: '' },
     extracted_data: { type: mongoose.Schema.Types.Mixed, default: {} }, 
     verified_at: { type: Date, default: null }
   },

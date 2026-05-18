@@ -18,11 +18,10 @@ import PaymentPage from './pages/PaymentPage';
 import BookingSuccess from './pages/BookingSuccess';
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
-const API = 'http://localhost:5000';
 
 function getProfilePictureUrl(path) {
   if (!path) return null;
-  return path.startsWith('http') ? path : `${API}${path}`;
+  return path;
 }
 
 const Navbar = () => {

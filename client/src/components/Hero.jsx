@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { API } from '../config/api';
 
 const Hero = () => {
   const [query, setQuery] = useState('');
@@ -15,7 +16,7 @@ const Hero = () => {
 
     try {
       // 1. Send the user's sentence to your AI Backend
-      const { data } = await axios.post('http://localhost:5000/api/chat', {
+      const { data } = await axios.post(`${API}/api/chat`, {
         message: query
       });
 
@@ -88,7 +89,7 @@ const Hero = () => {
                     <div key={car._id} className="border rounded-lg p-3 flex gap-3 hover:bg-gray-50 transition">
                       {/* Thumbnail */}
                       <img 
-                        src={`http://localhost:5000${car.images?.[0]}`} 
+                        src={car.images?.[0]} 
                         alt={car.make} 
                         className="w-20 h-20 object-cover rounded-md bg-gray-200"
                       />

@@ -1,12 +1,8 @@
 import { useState } from 'react';
 
-const API = 'http://localhost:5000';
-
 export default function PaymentProofLink({ path }) {
   const [open, setOpen] = useState(false);
   if (!path) return null;
-
-  const src = path.startsWith('http') ? path : `${API}${path}`;
 
   return (
     <>
@@ -38,7 +34,7 @@ export default function PaymentProofLink({ path }) {
                 </svg>
               </button>
             </div>
-            <img src={src} alt="Payment proof" className="max-h-[72vh] w-full rounded-subtle object-contain" />
+            <img src={path} alt="Payment proof" className="max-h-[72vh] w-full rounded-subtle object-contain" />
           </div>
         </div>
       )}

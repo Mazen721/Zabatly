@@ -1,8 +1,11 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const User = require('../models/User');
 const Vehicle = require('../models/vehicle');
+const { createNotification } = require('../utils/notificationHelper');
 const {
   OCR_MODEL,
   generateGeminiVisionJson,
@@ -176,6 +179,8 @@ Critical OCR instructions:
 - Never invent values that are not visible.
 `;
 
+const isHttpUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
+
 const runGeminiOcrFallback = async (filePath, docType) => {
   const prompt = buildGeminiOcrPrompt(docType);
   const mimeType = getImageMimeType(filePath);
@@ -194,27 +199,66 @@ const runGeminiOcrFallback = async (filePath, docType) => {
 // @desc    Upload document, send to Python AI, and update KYC status
 // @route   POST /api/users/kyc/verify
 const verifyDocument = async (req, res) => {
+  let workingPath = null;
+  let tempPath = null;
+  let documentImageUrl = '';
+
+  const cleanupInputFile = () => {
+    if (tempPath && fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch (_) {
+        /* ignore */
+      }
+      return;
+    }
+    if (workingPath && fs.existsSync(workingPath) && !isHttpUrl(req.file?.path)) {
+      try {
+        fs.unlinkSync(workingPath);
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  };
+
   try {
     // 1. Validation
     if (!req.file) {
       return res.status(400).json({ message: 'No document image provided.' });
     }
 
+    documentImageUrl = req.file.path;
+    workingPath = documentImageUrl;
+
+    if (isHttpUrl(documentImageUrl)) {
+      try {
+        const response = await axios.get(documentImageUrl, { responseType: 'arraybuffer', timeout: 120000 });
+        const ext = path.extname(req.file.originalname || '').toLowerCase();
+        const safeExt = ['.jpg', '.jpeg', '.png', '.webp'].includes(ext) ? ext : '.jpg';
+        tempPath = path.join(os.tmpdir(), `kyc-${Date.now()}-${Math.random().toString(36).slice(2)}${safeExt}`);
+        await fs.promises.writeFile(tempPath, Buffer.from(response.data));
+        workingPath = tempPath;
+      } catch (e) {
+        console.error('Failed to fetch uploaded image for OCR:', e.message);
+        return res.status(502).json({ message: 'Could not load the uploaded image for processing.' });
+      }
+    }
+
     const { doc_type, vehicleId } = req.body;
 
     if (!validTypes.includes(doc_type)) {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      cleanupInputFile();
       return res.status(400).json({ message: 'Invalid document type.' });
     }
 
     if (doc_type === 'car_license' && !vehicleId) {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      cleanupInputFile();
       return res.status(400).json({ message: 'vehicleId is required for car license verification.' });
     }
 
     // 2. Prepare payload for Python OCR.
     const formData = new FormData();
-    formData.append('file', fs.createReadStream(req.file.path));
+    formData.append('file', fs.createReadStream(workingPath));
     formData.append('doc_type', doc_type);
     formData.append('run_fraud_check', 'true');
 
@@ -232,7 +276,7 @@ const verifyDocument = async (req, res) => {
       if (ocrData.success === false && hasGeminiApiKey()) {
         console.warn('Python OCR returned success:false. Trying Gemini OCR fallback.');
         geminiFallbackAttempted = true;
-        ocrData = await runGeminiOcrFallback(req.file.path, doc_type);
+        ocrData = await runGeminiOcrFallback(workingPath, doc_type);
       } else if (shouldSendToAdminForInconclusiveExtraction(doc_type, ocrData)) {
         ocrData = createAdminReviewResponse(
           doc_type,
@@ -244,15 +288,15 @@ const verifyDocument = async (req, res) => {
       console.error(geminiFallbackAttempted ? 'Gemini OCR Fallback Error:' : 'Python OCR Error:', aiError.message);
 
       if (!hasGeminiApiKey() || geminiFallbackAttempted) {
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        cleanupInputFile();
         return res.status(503).json({ message: 'AI Service is currently down.' });
       }
 
       try {
         geminiFallbackAttempted = true;
-        ocrData = await runGeminiOcrFallback(req.file.path, doc_type);
+        ocrData = await runGeminiOcrFallback(workingPath, doc_type);
       } catch (geminiError) {
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        cleanupInputFile();
         console.error('Gemini OCR Fallback Error:', geminiError.message);
         return res.status(503).json({ message: 'AI Service is currently down.' });
       }
@@ -283,7 +327,7 @@ const verifyDocument = async (req, res) => {
 
     // 4b. Handle extraction failure that is not eligible for admin review.
     if (!success) {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      cleanupInputFile();
       return res.status(400).json({ message: 'AI could not read the document. Please use a clearer photo.' });
     }
 
@@ -297,16 +341,23 @@ const verifyDocument = async (req, res) => {
 
     // 6. Preserve image only when a human needs to review it.
     if (newKycStatus === 'pending') {
-      ocrData.image_url = `/uploads/${req.file.filename}`;
+      ocrData.image_url = documentImageUrl;
       console.log('Document preserved for Admin review.');
+      if (tempPath && fs.existsSync(tempPath)) {
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (_) {
+          /* ignore */
+        }
+      }
     } else {
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      cleanupInputFile();
     }
 
     // 7. Save OCR data to MongoDB.
     if (effectiveDocType === 'car_license') {
       if (!vehicleId) {
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        cleanupInputFile();
         return res.status(400).json({ message: 'vehicleId is required when detected document type is car_license.' });
       }
 
@@ -317,11 +368,18 @@ const verifyDocument = async (req, res) => {
       vehicle.car_license = {
         plate_number: fields.plate_number || null,
         chassis_number: fields.chassis_number || null,
+        document_url: documentImageUrl,
         extracted_data: ocrData,
         verified_at: newKycStatus === 'verified' ? Date.now() : null,
       };
       vehicle.kyc_status = newKycStatus;
       await vehicle.save();
+
+      if (newKycStatus === 'verified') {
+        await createNotification(req.user._id, 'Your vehicle license has been approved.', 'kyc_approved');
+      } else if (newKycStatus === 'rejected') {
+        await createNotification(req.user._id, 'Your vehicle license has been rejected.', 'kyc_rejected');
+      }
 
       return res.status(200).json({ message: 'Vehicle license processed', status: newKycStatus, data: fields });
     }
@@ -332,6 +390,7 @@ const verifyDocument = async (req, res) => {
       user.identity_document = {
         doc_type: effectiveDocType,
         document_number: fields.national_id_number || fields.document_number || null,
+        document_url: documentImageUrl,
         extracted_data: ocrData,
         verified_at: newKycStatus === 'verified' ? Date.now() : null,
       };
@@ -339,6 +398,7 @@ const verifyDocument = async (req, res) => {
     } else if (effectiveDocType === 'driver_license') {
       user.driving_license = {
         license_number: fields.license_number || null,
+        document_url: documentImageUrl,
         extracted_data: ocrData,
         status: newKycStatus,
         is_verified: newKycStatus === 'verified',
@@ -348,6 +408,12 @@ const verifyDocument = async (req, res) => {
     }
 
     await user.save();
+
+    if (newKycStatus === 'verified') {
+      await createNotification(req.user._id, 'Your identity verification has been approved.', 'kyc_approved');
+    } else if (newKycStatus === 'rejected') {
+      await createNotification(req.user._id, 'Your identity verification has been rejected.', 'kyc_rejected');
+    }
 
     // If the AI rejected it immediately for fraud, send a 400.
     if (newKycStatus === 'rejected') {
@@ -360,7 +426,7 @@ const verifyDocument = async (req, res) => {
     return res.status(200).json({ message: 'Identity processed', status: newKycStatus, data: fields });
   } catch (error) {
     console.error('KYC Error:', error);
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    cleanupInputFile();
     res.status(500).json({ message: 'Server Error' });
   }
 };

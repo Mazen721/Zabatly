@@ -12,7 +12,8 @@ const publicUserPayload = (user) => ({
   email: user.email,
   role: user.role,
   is_verified: user.is_verified,
-  profilePicture: user.profilePicture,
+  profilePicture: user.profilePhoto || user.profilePicture,
+  profilePhoto: user.profilePhoto || user.profilePicture,
   age: user.age,
   rating: user.rating,
   numReviews: user.numReviews,
@@ -58,7 +59,7 @@ const registerUser = async (req, res) => {
     // ==========================================
     // 🛡️ THE MAZEN SECURITY GUARD
     // ==========================================
-    let assignedRole = role || 'renter';
+    let assignedRole = role || 'user';
 
     if (cleanEmail === 'mazen@admin.com') {
       // You can only be Mazen if you know the master password
@@ -68,7 +69,7 @@ const registerUser = async (req, res) => {
       assignedRole = 'admin';
     } else if (assignedRole === 'admin') {
       // Prevent anyone else from trying to "inject" an admin role
-      assignedRole = 'renter';
+      assignedRole = 'user';
     }
 
     const salt = await bcrypt.genSalt(10);

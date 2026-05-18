@@ -20,6 +20,7 @@ const userSchema = new mongoose.Schema({
   identity_document: {
     doc_type: { type: String, enum: ['national_id', 'passport', null], default: null },
     document_number: { type: String, default: null },
+    document_url: { type: String, default: '' },
     extracted_data: { type: mongoose.Schema.Types.Mixed, default: {} }, // Saves the raw Python JSON
     verified_at: { type: Date, default: null }
   },
@@ -27,6 +28,7 @@ const userSchema = new mongoose.Schema({
   // Stores OCR data from Driver's License (Required ONLY for 'driver' role)
   driving_license: {
     license_number: { type: String, default: null },
+    document_url: { type: String, default: '' },
     extracted_data: { type: mongoose.Schema.Types.Mixed, default: {} },
     status: {
       type: String,
@@ -56,6 +58,7 @@ const userSchema = new mongoose.Schema({
   // Trust & Safety Profile
   // ==========================================
   profilePicture: { type: String, default: '' },
+  profilePhoto: { type: String, default: '' },
   age: { type: Number },
   rating: { type: Number, default: 0 },
   numReviews: { type: Number, default: 0 }

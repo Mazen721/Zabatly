@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { API } from '../config/api';
 
 /* ─── Data ────────────────────────────────────────────────────────── */
 
@@ -97,11 +98,10 @@ function HeartIcon({ filled }) {
 }
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
-const API = 'http://localhost:5000';
 
 function getProfilePictureUrl(path) {
   if (!path) return null;
-  return path.startsWith('http') ? path : `${API}${path}`;
+  return path;
 }
 
 function ProfileAvatar({ user }) {
@@ -175,7 +175,7 @@ function VehicleCard({ vehicle }) {
   const [imgError, setImgError] = useState(false);
 
   const imgSrc = vehicle.images && vehicle.images.length > 0
-    ? `http://localhost:5000${vehicle.images[0]}`
+    ? vehicle.images[0]
     : null;
 
   return (
@@ -247,7 +247,7 @@ export default function Landing() {
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/vehicles');
+        const { data } = await axios.get(`${API}/api/vehicles`);
         setVehicles(data);
       } catch (err) {
         console.error('Failed to fetch vehicles:', err);

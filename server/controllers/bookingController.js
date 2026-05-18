@@ -1,9 +1,12 @@
 const Booking = require('../models/booking');
 const User = require('../models/User');
 const Vehicle = require('../models/vehicle');
+const { createPaymentForBooking, attachPaymentsToBookings } = require('./paymentController');
+const { createNotification } = require('../utils/notificationHelper');
 
 const sameId = (a, b) => a && b && a.toString() === b.toString();
 const blockingStatuses = ['pending', 'confirmed', 'active'];
+const VALID_PAYMENT_METHODS = new Set(['vodafone_cash', 'instapay', 'card']);
 
 const parseDateBoundary = (value, endOfDay = false) => {
   if (!value) return null;
@@ -65,6 +68,13 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ message: 'Choose a vehicle or a driver to book.' });
     }
 
+    if (!paymentMethod) {
+      return res.status(400).json({ message: 'paymentMethod is required.' });
+    }
+    if (!VALID_PAYMENT_METHODS.has(paymentMethod)) {
+      return res.status(400).json({ message: 'Invalid payment method.' });
+    }
+
     let bookingOwner = null;
     let bookingDriver = null;
 
@@ -121,6 +131,8 @@ const createBooking = async (req, res) => {
       bookingDriver = targetDriver._id;
     }
 
+    const proofUrl = req.file ? req.file.path : '';
+
     const booking = new Booking({
       vehicle,
       renter: req.user.id,
@@ -129,15 +141,37 @@ const createBooking = async (req, res) => {
       startDate,
       endDate,
       totalPrice,
-      paymentMethod: paymentMethod || null,
-      paymentStatus: paymentMethod ? 'paid' : 'unpaid',
-      paymentProof: req.file ? `/uploads/${req.file.filename}` : '',
+      paymentStatus: 'unpaid',
       withDriver: withDriver || needsDriver || false,
       routeDescription,
     });
 
     await booking.save();
-    res.status(201).json(booking);
+
+    if (bookingOwner) {
+      await createNotification(
+        bookingOwner,
+        'You have a new booking request for your vehicle.',
+        'new_booking_request'
+      );
+    } else if (bookingDriver) {
+      await createNotification(
+        bookingDriver,
+        'You have a new driver booking request.',
+        'driver_request'
+      );
+    }
+
+    await createPaymentForBooking({
+      bookingId: booking._id,
+      userId: req.user._id,
+      amount: totalPrice,
+      method: paymentMethod,
+      proofUrl,
+    });
+
+    const [bookingWithPayment] = await attachPaymentsToBookings([booking.toObject()]);
+    res.status(201).json(bookingWithPayment);
   } catch (error) {
     res.status(500).json({ message: 'Booking failed', error: error.message });
   }
@@ -215,9 +249,10 @@ const getMyBookings = async (req, res) => {
       .populate('renter', 'name phone')
       .populate('owner', 'name')
       .populate('driver', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
-    res.json(bookings);
+    res.json(await attachPaymentsToBookings(bookings));
   } catch (error) {
     res.status(500).json({ message: 'Server Error' });
   }
@@ -255,6 +290,19 @@ const updateBookingStatus = async (req, res) => {
           currentRide: booking._id,
         });
       }
+
+      await createNotification(
+        booking.renter,
+        'Your booking has been confirmed.',
+        'booking_confirmed'
+      );
+    } else if (status === 'confirmed') {
+      booking.status = 'confirmed';
+      await createNotification(
+        booking.renter,
+        'Your booking has been confirmed.',
+        'booking_confirmed'
+      );
     } else if (renterFinished === true) {
       if (renterId !== userId) {
         return res.status(401).json({ message: 'Only the renter can request trip completion.' });
@@ -279,6 +327,12 @@ const updateBookingStatus = async (req, res) => {
           currentRide: null,
         });
       }
+
+      await createNotification(
+        booking.renter,
+        'Your booking has been completed.',
+        'booking_completed'
+      );
     } else if (status === 'cancelled') {
       const canCancel = [ownerId, driverId, renterId].filter(Boolean).includes(userId);
       if (!canCancel) {
@@ -292,6 +346,12 @@ const updateBookingStatus = async (req, res) => {
           currentRide: null,
         });
       }
+
+      await createNotification(
+        booking.renter,
+        'Your booking has been cancelled.',
+        'booking_cancelled'
+      );
     }
 
     await booking.save();
@@ -342,6 +402,12 @@ const finishRide = async (req, res) => {
       if (booking.vehicle) {
         await Vehicle.findByIdAndUpdate(booking.vehicle, { isAvailable: true });
       }
+
+      await createNotification(
+        booking.renter,
+        'Your booking has been completed.',
+        'booking_completed'
+      );
     }
 
     await booking.save();

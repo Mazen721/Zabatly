@@ -8,6 +8,8 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { API } from '../config/api';
+import { getVehicleAreaLabel, getVehicleExactAddress } from '../data/egyptLocations';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
@@ -26,7 +28,6 @@ function StarRating({ rating, count }) {
   );
 }
 
-const API = 'http://localhost:5000';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const toDateKey = (date) => {
@@ -172,8 +173,8 @@ export default function VehicleDetails() {
     (async () => {
       try {
         const [vRes, rRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/vehicles/${id}`),
-          axios.get(`http://localhost:5000/api/reviews/vehicle/${id}`),
+          axios.get(`${API}/api/vehicles/${id}`),
+          axios.get(`${API}/api/reviews/vehicle/${id}`),
         ]);
         setVehicle(vRes.data);
         setReviews(rRes.data);
@@ -307,7 +308,7 @@ export default function VehicleDetails() {
     );
   }
 
-  const heroSrc = vehicle.images?.length > 0 ? `http://localhost:5000${vehicle.images[activeImg]}` : null;
+  const heroSrc = vehicle.images?.length > 0 ? vehicle.images[activeImg] : null;
   const mapCenter = [vehicle.location?.lat || vehicle.lat || 31.2001, vehicle.location?.lng || vehicle.lng || 29.9187];
   const isOwnVehicle = userInfo && (vehicle.owner?._id === userInfo._id || vehicle.owner === userInfo._id);
 
@@ -372,7 +373,7 @@ export default function VehicleDetails() {
                       onClick={() => setActiveImg(i)}
                       className={`shrink-0 h-14 w-20 rounded overflow-hidden border-2 transition-all duration-150 ${i === activeImg ? 'border-primary-800 opacity-100' : 'border-transparent opacity-60 hover:opacity-90'}`}
                     >
-                      <img src={`http://localhost:5000${img}`} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
                     </button>
                   ))}
                 </div>
@@ -417,7 +418,7 @@ export default function VehicleDetails() {
             <div className="flex items-center gap-4 py-5 border-t border-sand-200">
               <div className="w-12 h-12 rounded-full overflow-hidden bg-sand-200 shrink-0">
                 {vehicle.owner?.profilePicture ? (
-                  <img src={`http://localhost:5000${vehicle.owner.profilePicture}`} alt={vehicle.owner?.name} className="w-full h-full object-cover" />
+                  <img src={vehicle.owner.profilePicture} alt={vehicle.owner?.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-sand-500 font-bold text-lg">{vehicle.owner?.name?.charAt(0) || 'O'}</div>
                 )}
@@ -438,7 +439,12 @@ export default function VehicleDetails() {
             {/* Map */}
             <div>
               <h2 className="text-[1.1rem] font-semibold text-sand-950 mb-1">Pick-up location</h2>
-              <p className="text-[0.8rem] text-sand-500 mb-3">{vehicle.address || 'Alexandria, Egypt'}</p>
+              <p className="text-[0.85rem] font-medium text-sand-700">{getVehicleAreaLabel(vehicle)}</p>
+              {getVehicleExactAddress(vehicle) ? (
+                <p className="text-[0.8rem] text-sand-500 mb-3">{getVehicleExactAddress(vehicle)}</p>
+              ) : (
+                <p className="text-[0.8rem] text-sand-500 mb-3">{vehicle.address || 'Alexandria, Egypt'}</p>
+              )}
               <div className="h-64 w-full rounded-soft overflow-hidden border border-sand-200 relative z-0">
                 <MapContainer center={mapCenter} zoom={15} scrollWheelZoom={false} className="h-full w-full">
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
@@ -463,7 +469,7 @@ export default function VehicleDetails() {
                       <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 rounded-full bg-sand-200 overflow-hidden shrink-0">
                           {r.author?.profilePicture ? (
-                            <img src={`http://localhost:5000${r.author.profilePicture}`} alt="" className="w-full h-full object-cover" />
+                            <img src={r.author.profilePicture} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-sand-500 text-[0.7rem] font-bold">{r.author?.name?.charAt(0) || 'U'}</div>
                           )}

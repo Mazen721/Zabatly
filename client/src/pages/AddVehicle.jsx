@@ -1,7 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { API } from '../config/api';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import {
+  EGYPT_COUNTRY,
+  getGovernorateNames,
+  getCitiesByGovernorate,
+  getCityCoordinates,
+} from '../data/egyptLocations';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -25,20 +32,24 @@ function LocationPicker({ onLocationSelect }) {
   return null;
 }
 
+function MapRecenter({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom, { animate: true });
+  }, [center, zoom, map]);
+  return null;
+}
+
 async function reverseGeocode(lat, lng) {
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      { headers: { 'Accept-Language': 'en' } }
-    );
-    const data = await res.json();
-    return data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const { data } = await axios.get(`${API}/api/geocode/reverse`, {
+      params: { lat, lng },
+    });
+    return data.address || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   } catch {
     return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
-
-const API = 'http://localhost:5000';
 
 const inputClass =
   'w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 placeholder:text-sand-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors';
@@ -55,8 +66,18 @@ export default function AddVehicle() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const defaultCenter = [31.2001, 29.9187];
-  const [position, setPosition] = useState({ lat: 31.2001, lng: 29.9187 });
+  const defaultGovernorate = 'Alexandria';
+  const defaultCity = 'Alexandria';
+  const defaultCoords = getCityCoordinates(defaultGovernorate, defaultCity) || {
+    lat: 31.2001,
+    lng: 29.9187,
+  };
+
+  const [mapCenter, setMapCenter] = useState([defaultCoords.lat, defaultCoords.lng]);
+  const [mapZoom, setMapZoom] = useState(13);
+  const [position, setPosition] = useState({ lat: defaultCoords.lat, lng: defaultCoords.lng });
+
+  const governorateOptions = useMemo(() => getGovernorateNames(), []);
 
   const [formData, setFormData] = useState({
     make: '',
@@ -71,8 +92,16 @@ export default function AddVehicle() {
     price_per_day: '',
     has_driver: false,
     driver_cost: 0,
-    address: 'Alexandria, Egypt',
+    country: EGYPT_COUNTRY,
+    governorate: defaultGovernorate,
+    city: defaultCity,
+    address: '',
   });
+
+  const cityOptions = useMemo(
+    () => getCitiesByGovernorate(formData.governorate),
+    [formData.governorate]
+  );
 
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
@@ -95,6 +124,39 @@ export default function AddVehicle() {
     setFormData((prev) => ({ ...prev, address }));
     setGeocoding(false);
   }, []);
+
+  const handleGovernorateChange = (e) => {
+    const governorate = e.target.value;
+    const cities = getCitiesByGovernorate(governorate);
+    const firstCity = cities[0]?.name || '';
+
+    setFormData((prev) => ({
+      ...prev,
+      governorate,
+      city: firstCity,
+      address: '',
+    }));
+
+    if (cities[0]) {
+      const coords = cities[0];
+      setPosition({ lat: coords.lat, lng: coords.lng });
+      setMapCenter([coords.lat, coords.lng]);
+      setMapZoom(12);
+    }
+  };
+
+  const handleCityChange = (e) => {
+    const city = e.target.value;
+    const coords = getCityCoordinates(formData.governorate, city);
+
+    setFormData((prev) => ({ ...prev, city, address: '' }));
+
+    if (coords) {
+      setPosition({ lat: coords.lat, lng: coords.lng });
+      setMapCenter([coords.lat, coords.lng]);
+      setMapZoom(13);
+    }
+  };
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
@@ -126,6 +188,14 @@ export default function AddVehicle() {
     }
     if (!licenseFile) {
       setError('Upload the official car license for verification.');
+      return;
+    }
+    if (!formData.governorate || !formData.city) {
+      setError('Select a governorate and city for pickup.');
+      return;
+    }
+    if (!formData.address) {
+      setError('Click the map to set the exact pickup address.');
       return;
     }
 
@@ -428,21 +498,78 @@ export default function AddVehicle() {
               Pickup Location
             </h2>
             <p className="text-[0.8125rem] text-sand-500 mb-4">
-              Click the map to set where renters pick up the car.
+              Choose your area, then click the map to pin the exact pickup spot.
             </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div>
+                <label htmlFor="country" className={labelClass}>
+                  Country
+                </label>
+                <select
+                  id="country"
+                  name="country"
+                  value={formData.country}
+                  disabled
+                  className={`${selectClass} opacity-70 cursor-not-allowed`}
+                >
+                  <option value={EGYPT_COUNTRY}>{EGYPT_COUNTRY}</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="governorate" className={labelClass}>
+                  Governorate
+                </label>
+                <select
+                  id="governorate"
+                  name="governorate"
+                  value={formData.governorate}
+                  onChange={handleGovernorateChange}
+                  className={selectClass}
+                  required
+                >
+                  {governorateOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="city" className={labelClass}>
+                  City
+                </label>
+                <select
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleCityChange}
+                  className={selectClass}
+                  required
+                >
+                  {cityOptions.map((city) => (
+                    <option key={city.name} value={city.name}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <div className="relative mb-3">
               <label htmlFor="address" className={labelClass}>
-                Address
+                Exact Address
               </label>
               <input
                 id="address"
                 type="text"
                 name="address"
                 value={formData.address}
-                onChange={handleChange}
-                placeholder="Click the map or type an address"
-                className={inputClass}
+                readOnly
+                placeholder="Click the map to set the exact pickup address"
+                className={`${inputClass} bg-sand-50 cursor-default`}
               />
               {geocoding && (
                 <div className="absolute right-3 top-9 w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -451,8 +578,8 @@ export default function AddVehicle() {
 
             <div className="h-64 w-full rounded-soft overflow-hidden border border-sand-200 relative z-0">
               <MapContainer
-                center={defaultCenter}
-                zoom={13}
+                center={mapCenter}
+                zoom={mapZoom}
                 scrollWheelZoom={false}
                 className="h-full w-full"
               >
@@ -460,6 +587,7 @@ export default function AddVehicle() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution="&copy; OpenStreetMap contributors"
                 />
+                <MapRecenter center={mapCenter} zoom={mapZoom} />
                 <LocationPicker onLocationSelect={handleLocationSelect} />
                 <Marker position={[position.lat, position.lng]} />
               </MapContainer>

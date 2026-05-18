@@ -3,12 +3,11 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import DashboardShell from './DashboardShell';
 import PaymentProofLink from '../PaymentProofLink';
-
-const API = 'http://localhost:5000';
+import { API } from '../../config/api';
 
 const getImg = (v) =>
   v?.images?.length > 0
-    ? `${API}${v.images[0]}`
+    ? v.images[0]
     : 'https://placehold.co/100x75/f2efea/a49888?text=No+Photo';
 
 const statusColors = {
@@ -315,7 +314,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <PaymentProofLink path={b.paymentProof} />
+                      <PaymentProofLink path={b.payment?.proofUrl} />
                       {b.renterFinished ? (
                         <button
                           onClick={() => updateStatus(b._id, 'completed')}
@@ -566,9 +565,9 @@ function RequestRow({ booking: b, onAccept, onDecline }) {
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <span className="text-[0.72rem] font-medium text-sand-500">
-            {paymentLabels[b.paymentMethod] || 'Payment pending'}
+            {paymentLabels[b.payment?.method] || 'Payment pending'}
           </span>
-          <PaymentProofLink path={b.paymentProof} />
+          <PaymentProofLink path={b.payment?.proofUrl} />
         </div>
       </div>
       <div className="flex gap-2 flex-shrink-0">

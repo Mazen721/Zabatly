@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../components/dashboard/DashboardShell';
-
-const API = 'http://localhost:5000';
+import { API } from '../config/api';
 
 function joinList(value) {
   return Array.isArray(value) ? value.join(', ') : value || '';
@@ -11,7 +10,7 @@ function joinList(value) {
 
 function getProfilePictureUrl(path) {
   if (!path) return null;
-  return path.startsWith('http') ? path : `${API}${path}`;
+  return path;
 }
 
 function getDriverDetails(user = {}) {
@@ -139,7 +138,7 @@ export default function Profile() {
     setSaving(true);
     const formData = new FormData();
     if (age) formData.append('age', age);
-    if (file) formData.append('profilePicture', file);
+    if (file) formData.append('profilePhoto', file);
     if (removeProfilePicture) formData.append('removeProfilePicture', 'true');
     if (user.role === 'driver') {
       Object.entries(driverDetails).forEach(([key, value]) => {

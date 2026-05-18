@@ -1,7 +1,5 @@
 import { Link, useLocation, Navigate } from 'react-router-dom';
 
-const API = 'http://localhost:5000';
-
 const methodLabels = {
   card: 'Credit / Debit Card',
   vodafone_cash: 'Vodafone Cash',
@@ -19,14 +17,14 @@ const formatDate = (date) =>
 
 const getImage = (vehicle) =>
   vehicle?.images?.length > 0
-    ? `${API}${vehicle.images[0]}`
+    ? vehicle.images[0]
     : 'https://placehold.co/420x280/f2efea/a49888?text=Zabatly';
 
 export default function BookingSuccess() {
   const { state } = useLocation();
   const booking = state?.booking;
   const vehicle = state?.vehicle || booking?.vehicle;
-  const paymentMethod = state?.paymentMethod || booking?.paymentMethod;
+  const paymentMethod = state?.paymentMethod || booking?.payment?.method;
 
   if (!booking) return <Navigate to="/dashboard" replace />;
 
@@ -66,9 +64,9 @@ export default function BookingSuccess() {
                 <SummaryTile label="Total" value={`${Number(booking.totalPrice || 0).toLocaleString()} EGP`} />
               </div>
 
-              {booking.paymentProof && (
+              {booking.payment?.proofUrl && (
                 <a
-                  href={`${API}${booking.paymentProof}`}
+                  href={booking.payment.proofUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2 text-[0.75rem] font-semibold text-primary-700 transition-colors hover:bg-sand-200/60"

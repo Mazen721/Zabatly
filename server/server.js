@@ -2,7 +2,6 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
-const path = require('path');
 
 // Load env vars
 dotenv.config();
@@ -17,16 +16,16 @@ app.use(cors());
 app.use(express.json()); // Allows server to accept JSON data
 app.use('/api/admin', require('./routes/adminRoutes'));
 
-// --- STATIC FOLDER (For Images) ---
-// This allows the frontend to access images at http://localhost:5000/uploads/filename.jpg
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 // --- ROUTES ---
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users')); // KYC Verification is securely handled inside here!
 app.use('/api/vehicles', require('./routes/vehicles'));
 app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/payments', require('./routes/payments'));
 app.use('/api/reviews', require('./routes/reviews'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/driver-requests', require('./routes/driverRequests'));
+app.use('/api/geocode', require('./routes/geocode'));
 
 // AI Chat route is live!
 app.use('/api/chat', require('./routes/ai'));

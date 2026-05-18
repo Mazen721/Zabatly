@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import DashboardShell from './DashboardShell';
-
-const API = 'http://localhost:5000';
+import { API } from '../../config/api';
 
 const statusColors = {
   active: 'bg-green-50 text-green-700 border border-green-200',
