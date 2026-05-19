@@ -26,6 +26,26 @@ function getDriverDetails(user = {}) {
   };
 }
 
+function toDateInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+}
+
+function getProfileDetails(user = {}) {
+  return {
+    dateOfBirth: toDateInput(user.dateOfBirth),
+    gender: user.gender || '',
+    phone: user.phone || '',
+    city: user.city || user.currentLocation || '',
+    nationality: user.nationality || '',
+    preferredLanguage: user.preferredLanguage || 'English',
+    emergencyContactName: user.emergencyContact?.name || '',
+    emergencyContactPhone: user.emergencyContact?.phone || '',
+    emergencyContactRelation: user.emergencyContact?.relation || '',
+  };
+}
+
 function createCroppedAvatar(sourceUrl, crop) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -74,6 +94,7 @@ export default function Profile() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [localPreview, setLocalPreview] = useState(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [cropSource, setCropSource] = useState(null);
   const [cropFileName, setCropFileName] = useState('profile-picture.jpg');
   const [crop, setCrop] = useState({ x: 50, y: 50, zoom: 1 });
@@ -89,6 +110,7 @@ export default function Profile() {
     languagesSpoken: '',
     contactDetails: '',
   });
+  const [profileDetails, setProfileDetails] = useState(getProfileDetails());
 
   // KYC
   const [kycFile, setKycFile] = useState(null);
@@ -106,6 +128,7 @@ export default function Profile() {
     setUser(parsed);
     setAge(parsed.age || '');
     setDriverDetails(getDriverDetails(parsed));
+    setProfileDetails(getProfileDetails(parsed));
     setPreview(getProfilePictureUrl(parsed.profilePicture));
 
     const fetchFreshProfile = async () => {
@@ -118,6 +141,7 @@ export default function Profile() {
         setUser(fresh);
         setAge(fresh.age || '');
         setDriverDetails(getDriverDetails(fresh));
+        setProfileDetails(getProfileDetails(fresh));
         setPreview(getProfilePictureUrl(fresh.profilePicture));
       } catch {
         showToast('Could not refresh profile details.', 'error');
@@ -126,6 +150,15 @@ export default function Profile() {
 
     fetchFreshProfile();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!lightboxOpen) return undefined;
+    const closeOnEsc = (event) => {
+      if (event.key === 'Escape') setLightboxOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEsc);
+    return () => window.removeEventListener('keydown', closeOnEsc);
+  }, [lightboxOpen]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -138,6 +171,10 @@ export default function Profile() {
     setSaving(true);
     const formData = new FormData();
     if (age) formData.append('age', age);
+    Object.entries(profileDetails).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+    formData.append('currentLocation', profileDetails.city);
     if (file) formData.append('profilePhoto', file);
     if (removeProfilePicture) formData.append('removeProfilePicture', 'true');
     if (user.role === 'driver') {
@@ -157,6 +194,7 @@ export default function Profile() {
       localStorage.setItem('userInfo', JSON.stringify(data));
       setUser(data);
       setDriverDetails(getDriverDetails(data));
+      setProfileDetails(getProfileDetails(data));
       setPreview(getProfilePictureUrl(data.profilePicture));
       setFile(null);
       setRemoveProfilePicture(false);
@@ -480,6 +518,33 @@ export default function Profile() {
         </div>
       )}
 
+      {lightboxOpen && preview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-primary-950/80 px-4 py-6 animate-[profilePreviewIn_180ms_cubic-bezier(0.25,1,0.5,1)]"
+          onMouseDown={() => setLightboxOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <button
+            type="button"
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={() => setLightboxOpen(false)}
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-subtle bg-sand-50/95 text-sand-700 transition-colors hover:bg-sand-100"
+            aria-label="Close profile picture preview"
+          >
+            <svg width="15" height="15" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+              <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" />
+            </svg>
+          </button>
+          <img
+            src={preview}
+            alt={`${user.name} profile preview`}
+            className="max-h-[86vh] max-w-[92vw] rounded-soft object-contain shadow-xl shadow-primary-950/35"
+            onMouseDown={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* === ACCOUNT === */}
       {section === 'account' && (
         <div className="max-w-xl space-y-6">
@@ -488,16 +553,21 @@ export default function Profile() {
           {/* Profile header */}
           <div className="flex items-center gap-4">
             <div className="relative flex-shrink-0">
-              <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-[1.25rem] font-bold text-primary-800 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => preview && setLightboxOpen(true)}
+                className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-[1.25rem] font-bold text-primary-800 overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                aria-label={preview ? 'Open profile picture preview' : 'Profile picture placeholder'}
+              >
                 {preview ? (
-                  <img src={preview} alt="" className="w-full h-full object-cover" />
+                  <img src={preview} alt="" className="w-full h-full object-cover object-center" />
                 ) : (
                   <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="8" cy="5" r="3" />
                     <path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5" />
                   </svg>
                 )}
-              </div>
+              </button>
               <label className="absolute -bottom-0.5 -right-0.5 w-6 h-6 bg-sand-50 border border-sand-200 rounded-full flex items-center justify-center cursor-pointer hover:bg-sand-100 transition-colors" title="Change Profile Picture">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M8.5 1.5l2 2M1.5 8.5L1 11l2.5-.5L10 4 8 2 1.5 8.5z" />
@@ -624,6 +694,43 @@ export default function Profile() {
                 placeholder="25"
                 className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 placeholder:text-sand-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
               />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileInput id="profile-dob" label="Date of birth" type="date" value={profileDetails.dateOfBirth} onChange={(value) => setProfileDetails((prev) => ({ ...prev, dateOfBirth: value }))} />
+              <div>
+                <label htmlFor="profile-gender" className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5">
+                  Gender
+                </label>
+                <select
+                  id="profile-gender"
+                  value={profileDetails.gender}
+                  onChange={(e) => setProfileDetails((prev) => ({ ...prev, gender: e.target.value }))}
+                  className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileInput id="profile-phone" label="Phone number" type="tel" value={profileDetails.phone} placeholder="01012345678" onChange={(value) => setProfileDetails((prev) => ({ ...prev, phone: value }))} />
+              <ProfileInput id="profile-city" label="Current city" value={profileDetails.city} placeholder="Alexandria" onChange={(value) => setProfileDetails((prev) => ({ ...prev, city: value }))} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileInput id="profile-nationality" label="Nationality" value={profileDetails.nationality} placeholder="Egyptian" onChange={(value) => setProfileDetails((prev) => ({ ...prev, nationality: value }))} />
+              <ProfileInput id="profile-language" label="Preferred language" value={profileDetails.preferredLanguage} placeholder="English" onChange={(value) => setProfileDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <ProfileInput id="profile-emergency-name" label="Emergency contact" value={profileDetails.emergencyContactName} placeholder="Name" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
+              <ProfileInput id="profile-emergency-phone" label="Contact phone" type="tel" value={profileDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
+              <ProfileInput id="profile-emergency-relation" label="Relation" value={profileDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
             </div>
 
             {user.role === 'driver' && (
@@ -903,6 +1010,24 @@ function DriverInput({ id, label, value, placeholder, onChange }) {
       <input
         id={id}
         type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 placeholder:text-sand-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+      />
+    </div>
+  );
+}
+
+function ProfileInput({ id, label, value, placeholder = '', type = 'text', onChange }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5">
+        {label}
+      </label>
+      <input
+        id={id}
+        type={type}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}

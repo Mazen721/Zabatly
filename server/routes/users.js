@@ -7,6 +7,7 @@ const { verifyDocument } = require('../controllers/kycController');
 const { updateProfile } = require('../controllers/userController');
 
 const { uploadProfilePhoto, uploadKycDocument } = require('../middleware/uploadMiddleware');
+const { releaseExpiredBookings, blockingStatuses } = require('../utils/bookingExpiration');
 
 // ==========================================
 // ✅ THE "FRESH DATA" ROUTE 
@@ -33,6 +34,7 @@ router.get('/profile', protect, async (req, res) => {
 // @route   GET /api/users/drivers
 router.get('/drivers', async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const { location = '', area = '', availability = '', search = '' } = req.query;
     const query = { role: 'driver' };
 
@@ -65,13 +67,22 @@ router.get('/drivers', async (req, res) => {
 
     const [drivers, activeDriverIds] = await Promise.all([
       User.find(query).select('-password').sort({ isAvailable: -1, rating: -1 }).lean(),
-      Booking.distinct('driver', { status: 'active', driver: { $ne: null } }),
+      Booking.distinct('driver', {
+        status: { $in: blockingStatuses },
+        driver: { $ne: null },
+        endDate: { $gt: new Date() },
+      }),
     ]);
     const activeDriverSet = new Set(activeDriverIds.map((id) => id.toString()));
     res.json(
       drivers.map((driver) => ({
         ...driver,
-        isAvailable: activeDriverSet.has(driver._id.toString()) ? false : driver.isAvailable,
+        driverStatus: activeDriverSet.has(driver._id.toString())
+          ? 'busy'
+          : driver.driverStatus || (driver.isAvailable === false ? 'offline' : 'online'),
+        isAvailable: activeDriverSet.has(driver._id.toString())
+          ? false
+          : (driver.driverStatus || (driver.isAvailable === false ? 'offline' : 'online')) === 'online',
       }))
     );
   } catch (err) {
@@ -83,15 +94,28 @@ router.get('/drivers', async (req, res) => {
 // @route   PUT /api/users/driver-settings
 router.put('/driver-settings', protect, async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const user = await User.findById(req.user._id);
     if (user) {
-      if (user.currentRide && req.body.isAvailable === true) {
-        return res.status(400).json({ message: 'Finish your active ride before going online.' });
+      const requestedStatus = req.body.driverStatus || (req.body.isAvailable ? 'online' : 'offline');
+      if (!['online', 'busy', 'offline'].includes(requestedStatus)) {
+        return res.status(400).json({ message: 'Invalid driver status.' });
       }
-      user.isAvailable = user.currentRide ? false : req.body.isAvailable;
+
+      const activeReservation = await Booking.exists({
+        driver: user._id,
+        status: { $in: blockingStatuses },
+        endDate: { $gt: new Date() },
+      });
+      if ((user.currentRide || activeReservation) && requestedStatus === 'online') {
+        return res.status(400).json({ message: 'Finish your active reservation before going online.' });
+      }
+
+      user.driverStatus = user.currentRide || activeReservation ? 'busy' : requestedStatus;
+      user.isAvailable = user.driverStatus === 'online';
       user.dailyRate = req.body.dailyRate;
       await user.save();
-      res.json({ isAvailable: user.isAvailable, dailyRate: user.dailyRate });
+      res.json({ isAvailable: user.isAvailable, driverStatus: user.driverStatus, dailyRate: user.dailyRate });
     } else {
       res.status(404).json({ message: 'User not found' });
     }

@@ -15,11 +15,19 @@ const publicUserPayload = (user) => ({
   profilePicture: user.profilePhoto || user.profilePicture,
   profilePhoto: user.profilePhoto || user.profilePicture,
   age: user.age,
+  dateOfBirth: user.dateOfBirth,
+  gender: user.gender,
+  phone: user.phone,
+  city: user.city,
+  nationality: user.nationality,
+  preferredLanguage: user.preferredLanguage,
+  emergencyContact: user.emergencyContact,
   rating: user.rating,
   numReviews: user.numReviews,
   kyc_status: user.kyc_status,
   driving_license: user.driving_license,
   isAvailable: user.isAvailable,
+  driverStatus: user.driverStatus,
   dailyRate: user.dailyRate,
   currentLocation: user.currentLocation,
   coveredAreas: user.coveredAreas,
@@ -32,6 +40,11 @@ const publicUserPayload = (user) => ({
   token: generateToken(user.id),
 });
 
+const isStrongPassword = (password = '') =>
+  password.length >= 8 &&
+  /[A-Z]/.test(password) &&
+  /[^A-Za-z0-9]/.test(password);
+
 // @desc    Register new user with Master Admin Lock
 // @route   POST /api/auth/register
 const registerUser = async (req, res) => {
@@ -41,6 +54,13 @@ const registerUser = async (req, res) => {
     password,
     role,
     phone,
+    age,
+    dateOfBirth,
+    gender,
+    city,
+    nationality,
+    preferredLanguage,
+    emergencyContact,
     currentLocation,
     coveredAreas,
     availability,
@@ -72,6 +92,12 @@ const registerUser = async (req, res) => {
       assignedRole = 'user';
     }
 
+    if (assignedRole !== 'admin' && !isStrongPassword(password)) {
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters and include one uppercase letter and one symbol.',
+      });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -81,6 +107,13 @@ const registerUser = async (req, res) => {
       password: hashedPassword,
       role: assignedRole,
       phone,
+      age,
+      dateOfBirth: dateOfBirth || undefined,
+      gender,
+      city,
+      nationality,
+      preferredLanguage,
+      emergencyContact,
       currentLocation,
       coveredAreas,
       availability,

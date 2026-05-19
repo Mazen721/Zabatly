@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['user', 'agency', 'driver', 'admin'], default: 'user' },
+  phone: { type: String, default: '' },
   is_verified: { type: Boolean, default: false }, // Email/Phone basic verification
   
   // ==========================================
@@ -43,6 +44,11 @@ const userSchema = new mongoose.Schema({
   // Driver Specific Fields
   // ==========================================
   isAvailable: { type: Boolean, default: true },
+  driverStatus: {
+    type: String,
+    enum: ['online', 'busy', 'offline'],
+    default: 'online',
+  },
   dailyRate: { type: Number, default: 200 }, 
   currentRide: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
   currentLocation: { type: String, default: '' },
@@ -60,6 +66,16 @@ const userSchema = new mongoose.Schema({
   profilePicture: { type: String, default: '' },
   profilePhoto: { type: String, default: '' },
   age: { type: Number },
+  dateOfBirth: { type: Date },
+  gender: { type: String, enum: ['', 'male', 'female', 'other', 'prefer_not_to_say'], default: '' },
+  city: { type: String, default: '' },
+  nationality: { type: String, default: '' },
+  preferredLanguage: { type: String, default: 'English' },
+  emergencyContact: {
+    name: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    relation: { type: String, default: '' },
+  },
   rating: { type: Number, default: 0 },
   numReviews: { type: Number, default: 0 }
 

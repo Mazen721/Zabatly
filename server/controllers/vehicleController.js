@@ -1,9 +1,11 @@
 const Vehicle = require('../models/vehicle');
+const { releaseExpiredBookings } = require('../utils/bookingExpiration');
 
 // @desc    Fetch all vehicles
 // @route   GET /api/vehicles
 const getVehicles = async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const keyword = req.query.type ? {
       type: {
         $regex: req.query.type,
@@ -25,6 +27,7 @@ const getVehicles = async (req, res) => {
 // @route   GET /api/vehicles/:id
 const getVehicleById = async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const vehicle = await Vehicle.findById(req.params.id)
       .populate('owner', 'name email is_verified profilePicture profilePhoto age rating numReviews');
 

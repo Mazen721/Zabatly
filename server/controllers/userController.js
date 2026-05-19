@@ -16,6 +16,18 @@ const updateProfile = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.age = req.body.age || user.age;
+    user.dateOfBirth = req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : user.dateOfBirth;
+    user.gender = req.body.gender ?? user.gender;
+    user.phone = req.body.phone ?? user.phone;
+    user.city = req.body.city ?? user.city;
+    user.currentLocation = req.body.currentLocation ?? user.currentLocation;
+    user.nationality = req.body.nationality ?? user.nationality;
+    user.preferredLanguage = req.body.preferredLanguage ?? user.preferredLanguage;
+    user.emergencyContact = {
+      name: req.body.emergencyContactName ?? user.emergencyContact?.name ?? '',
+      phone: req.body.emergencyContactPhone ?? user.emergencyContact?.phone ?? '',
+      relation: req.body.emergencyContactRelation ?? user.emergencyContact?.relation ?? '',
+    };
 
     if (req.file) {
       const url = req.file.path;
@@ -50,11 +62,19 @@ const updateProfile = async (req, res) => {
       profilePicture: updatedUser.profilePicture,
       profilePhoto: updatedUser.profilePhoto,
       age: updatedUser.age,
+      dateOfBirth: updatedUser.dateOfBirth,
+      gender: updatedUser.gender,
+      phone: updatedUser.phone,
+      city: updatedUser.city,
+      nationality: updatedUser.nationality,
+      preferredLanguage: updatedUser.preferredLanguage,
+      emergencyContact: updatedUser.emergencyContact,
       rating: updatedUser.rating,
       numReviews: updatedUser.numReviews,
       kyc_status: updatedUser.kyc_status,
       driving_license: updatedUser.driving_license,
       isAvailable: updatedUser.isAvailable,
+      driverStatus: updatedUser.driverStatus,
       dailyRate: updatedUser.dailyRate,
       currentLocation: updatedUser.currentLocation,
       coveredAreas: updatedUser.coveredAreas,

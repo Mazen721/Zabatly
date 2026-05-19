@@ -5,9 +5,12 @@ import { API } from '../../config/api';
 
 const statusColors = {
   active: 'bg-green-50 text-green-700 border border-green-200',
+  confirmed: 'bg-primary-50 text-primary-700 border border-primary-200',
+  upcoming: 'bg-primary-50 text-primary-700 border border-primary-200',
   pending: 'bg-signal-50 text-signal-700 border border-signal-200',
   completed: 'bg-primary-50 text-primary-700 border border-primary-200',
   cancelled: 'bg-sand-100 text-sand-600 border border-sand-200',
+  expired: 'bg-sand-100 text-sand-600 border border-sand-200',
 };
 
 const StatusBadge = ({ status }) => (
@@ -20,14 +23,75 @@ const StatusBadge = ({ status }) => (
   </span>
 );
 
+const displayStatus = (booking, now = new Date()) => {
+  if (booking.status === 'active' || booking.status === 'completed') return booking.status;
+  if (booking.status === 'pending' || booking.status === 'confirmed') {
+    const start = booking.startDate ? new Date(booking.startDate) : null;
+    return start && start > now ? 'upcoming' : booking.status;
+  }
+  return booking.status || 'pending';
+};
+
+const formatDateTime = (value) =>
+  value
+    ? new Date(value).toLocaleString('en-GB', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Not set';
+
+const formatDuration = (startDate, endDate) => {
+  if (!startDate || !endDate) return 'Not set';
+  const minutes = Math.max(0, Math.round((new Date(endDate) - new Date(startDate)) / 60000));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours && rest) return `${hours}h ${rest}m`;
+  if (hours) return `${hours}h`;
+  return `${rest}m`;
+};
+
+const formatCountdown = (endDate, now) => {
+  if (!endDate) return 'No end time';
+  const seconds = Math.max(0, Math.floor((new Date(endDate) - now) / 1000));
+  if (seconds === 0) return 'Ending now';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = seconds % 60;
+  return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(rest).padStart(2, '0')}s`;
+};
+
+const driverStatusStyles = {
+  online: {
+    label: 'Online',
+    helper: 'Available for booking',
+    dot: 'bg-green-500',
+    badge: 'border-green-200 bg-green-50 text-green-700',
+  },
+  busy: {
+    label: 'Busy',
+    helper: 'Not accepting bookings',
+    dot: 'bg-red-500',
+    badge: 'border-red-200 bg-red-50 text-red-700',
+  },
+  offline: {
+    label: 'Offline',
+    helper: 'Hidden from renters',
+    dot: 'bg-sand-400',
+    badge: 'border-sand-200 bg-sand-100 text-sand-600',
+  },
+};
+
 export default function DriverDashboard({ user, returnTarget = null }) {
   const [section, setSection] = useState('overview');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAvailable, setIsAvailable] = useState(user.isAvailable !== false);
+  const [driverStatus, setDriverStatus] = useState(user.driverStatus || (user.isAvailable === false ? 'offline' : 'online'));
   const [dailyRate, setDailyRate] = useState(user.dailyRate || 200);
   const [saving, setSaving] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -44,10 +108,15 @@ export default function DriverDashboard({ user, returnTarget = null }) {
     fetchBookings();
   }, [user.token]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const myJobs = bookings.filter(
     (b) => b.driver?._id === user._id || b.driver === user._id
   );
-  const pendingJobs = myJobs.filter((b) => b.status === 'pending');
+  const pendingJobs = myJobs.filter((b) => b.status === 'pending' || b.status === 'confirmed');
   const activeJob = myJobs.find((b) => b.status === 'active');
   const completedJobs = myJobs.filter((b) => b.status === 'completed');
   const earnings = completedJobs.reduce(
@@ -55,21 +124,28 @@ export default function DriverDashboard({ user, returnTarget = null }) {
     0
   );
 
-  const hasActiveRide = !!activeJob;
+  const hasBlockingJob = myJobs.some((b) => ['active', 'pending', 'confirmed'].includes(b.status));
+  const visibleDriverStatus = hasBlockingJob ? 'busy' : driverStatus;
+  const visibleStatusStyle = driverStatusStyles[visibleDriverStatus] || driverStatusStyles.offline;
 
-  const saveSettings = async (newAvailability) => {
+  const saveSettings = async (nextStatus = driverStatus) => {
     setSaving(true);
     try {
       const { data } = await axios.put(
         `${API}/api/users/driver-settings`,
-        { isAvailable: newAvailability, dailyRate: Number(dailyRate) },
+        {
+          driverStatus: nextStatus,
+          isAvailable: nextStatus === 'online',
+          dailyRate: Number(dailyRate),
+        },
         { headers: { Authorization: `Bearer ${user.token}` } }
       );
       const stored = JSON.parse(localStorage.getItem('userInfo'));
       stored.isAvailable = data.isAvailable;
+      stored.driverStatus = data.driverStatus;
       stored.dailyRate = data.dailyRate;
       localStorage.setItem('userInfo', JSON.stringify(stored));
-      setIsAvailable(data.isAvailable);
+      setDriverStatus(data.driverStatus);
     } catch {
       setError('Could not save settings.');
     } finally {
@@ -90,8 +166,9 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       if (status === 'active') {
         const stored = JSON.parse(localStorage.getItem('userInfo'));
         stored.isAvailable = false;
+        stored.driverStatus = 'busy';
         localStorage.setItem('userInfo', JSON.stringify(stored));
-        setIsAvailable(false);
+        setDriverStatus('busy');
       }
     } catch {
       setError('Failed to update job status.');
@@ -110,9 +187,10 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       );
       if (data.status === 'completed') {
         const stored = JSON.parse(localStorage.getItem('userInfo'));
-        stored.isAvailable = true;
+        stored.isAvailable = false;
+        stored.driverStatus = 'busy';
         localStorage.setItem('userInfo', JSON.stringify(stored));
-        setIsAvailable(true);
+        setDriverStatus('busy');
       }
     } catch {
       setError('Could not finish the ride.');
@@ -181,35 +259,19 @@ export default function DriverDashboard({ user, returnTarget = null }) {
   const contextStrip = (
     <div className="flex items-center gap-4 flex-wrap">
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => !hasActiveRide && saveSettings(!isAvailable)}
-          disabled={hasActiveRide || saving}
-          className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ease-out-quart focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
-            hasActiveRide
-              ? 'bg-sand-300 cursor-not-allowed'
-              : isAvailable
-              ? 'bg-green-500 cursor-pointer'
-              : 'bg-sand-400 cursor-pointer'
-          }`}
-          role="switch"
-          aria-checked={isAvailable}
-          aria-label="Availability toggle"
-        >
-          <span
-            className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-out-quart mt-0.5 ${
-              isAvailable ? 'translate-x-[18px]' : 'translate-x-[2px]'
-            }`}
-          />
-        </button>
+        <span className={`inline-block h-2.5 w-2.5 rounded-full ${visibleStatusStyle.dot}`} />
         <span className="text-[0.8125rem] font-semibold text-sand-800">
-          {hasActiveRide ? 'In Ride' : isAvailable ? 'Online' : 'Offline'}
+          {visibleStatusStyle.label}
+        </span>
+        <span className={`rounded-subtle border px-2 py-0.5 text-[0.7rem] font-semibold ${visibleStatusStyle.badge}`}>
+          {visibleStatusStyle.helper}
         </span>
       </div>
       {activeJob && (
         <>
           <span className="text-sand-300">|</span>
           <div className="flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-[0.8125rem] text-sand-700">
               Driving for {activeJob.renter?.name || 'Client'}
             </span>
@@ -246,8 +308,59 @@ export default function DriverDashboard({ user, returnTarget = null }) {
           </h1>
 
           {/* Settings bar */}
-          <div className="flex flex-wrap items-end gap-4 border border-sand-200 rounded-soft p-4 bg-sand-50">
-            <div>
+          <div className="grid gap-4 border border-sand-200 rounded-soft p-4 bg-sand-50 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <div className="space-y-3">
+              <div>
+                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-1">
+                  Current Status
+                </p>
+                <div className={`inline-flex items-center gap-2 rounded-subtle border px-3 py-2 text-[0.8125rem] font-semibold ${visibleStatusStyle.badge}`}>
+                  <span className={`h-2.5 w-2.5 rounded-full ${visibleStatusStyle.dot}`} />
+                  {visibleStatusStyle.label}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => saveSettings('online')}
+                  disabled={saving || hasBlockingJob}
+                  className="rounded-subtle bg-green-600 px-3.5 py-2 text-[0.78rem] font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500"
+                >
+                  Go Online
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveSettings('online')}
+                  disabled={saving || hasBlockingJob}
+                  className="rounded-subtle border border-green-200 bg-green-50 px-3.5 py-2 text-[0.78rem] font-semibold text-green-700 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:border-sand-200 disabled:bg-sand-100 disabled:text-sand-500"
+                >
+                  Mark as Available
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveSettings('busy')}
+                  disabled={saving || hasBlockingJob}
+                  className="rounded-subtle border border-red-200 bg-red-50 px-3.5 py-2 text-[0.78rem] font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:border-sand-200 disabled:bg-sand-100 disabled:text-sand-500"
+                >
+                  Mark as Busy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveSettings('offline')}
+                  disabled={saving || hasBlockingJob}
+                  className="rounded-subtle border border-sand-200 bg-sand-100 px-3.5 py-2 text-[0.78rem] font-semibold text-sand-700 transition-colors hover:bg-sand-200/70 disabled:cursor-not-allowed disabled:text-sand-500"
+                >
+                  Go Offline
+                </button>
+              </div>
+              {hasBlockingJob && (
+                <p className="text-[0.75rem] text-sand-500">
+                  You are Busy while a reservation is pending or active. Complete the trip before going Online.
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
               <label className="block text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-1">
                 Daily Rate (EGP)
               </label>
@@ -255,17 +368,17 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                 type="number"
                 value={dailyRate}
                 onChange={(e) => setDailyRate(e.target.value)}
-                disabled={hasActiveRide}
                 className="w-28 bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2 text-[0.875rem] font-semibold text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors disabled:opacity-50 tabular-nums"
               />
             </div>
             <button
-              onClick={() => saveSettings(isAvailable)}
-              disabled={hasActiveRide || saving}
+              onClick={() => saveSettings(driverStatus)}
+              disabled={saving}
               className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving...' : 'Save Rate'}
             </button>
+            </div>
           </div>
 
           {/* Metrics */}
@@ -282,7 +395,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                 Active Assignment
               </p>
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[0.95rem] font-semibold text-sand-900">
                     Driving for {activeJob.renter?.name || 'Client'}
                   </p>
@@ -301,7 +414,23 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   <p className="text-[0.95rem] font-bold text-sand-900 mt-1 tabular-nums">
                     {activeJob.totalPrice?.toLocaleString()} EGP
                   </p>
+                  <p className="mt-1 text-[0.8125rem] text-sand-600">
+                    {activeJob.routeDescription || 'Pickup details not added'}
+                  </p>
+                  <p className="mt-1 text-[0.8125rem] font-semibold tabular-nums text-green-700">
+                    Time left: {formatCountdown(activeJob.endDate, now)}
+                  </p>
                 </div>
+                {activeJob.renter?.phone && (
+                  <div className="flex flex-wrap gap-2">
+                    <a href={`tel:${activeJob.renter.phone}`} className="rounded-subtle border border-sand-200 bg-sand-50 px-3 py-2 text-[0.75rem] font-semibold text-primary-700 transition-colors hover:bg-sand-100">
+                      Call renter
+                    </a>
+                    <a href={`https://wa.me/${activeJob.renter.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="rounded-subtle border border-green-200 bg-green-50 px-3 py-2 text-[0.75rem] font-semibold text-green-700 transition-colors hover:bg-green-100">
+                      WhatsApp
+                    </a>
+                  </div>
+                )}
                 <button
                   onClick={() => finishRide(activeJob._id)}
                   className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-5 py-2.5 rounded-subtle hover:bg-primary-900 transition-colors"
@@ -343,16 +472,16 @@ export default function DriverDashboard({ user, returnTarget = null }) {
             <div className="border border-sand-200 rounded-soft py-10 text-center">
               <div
                 className={`inline-block w-3 h-3 rounded-full mb-3 ${
-                  isAvailable ? 'bg-green-500 animate-pulse' : 'bg-sand-400'
+                  visibleDriverStatus === 'online' ? 'bg-green-500 animate-pulse' : visibleDriverStatus === 'busy' ? 'bg-red-500' : 'bg-sand-400'
                 }`}
               />
               <p className="text-[0.95rem] font-semibold text-sand-800">
-                {isAvailable ? 'Online, waiting for requests' : 'You are offline'}
+                {visibleDriverStatus === 'online' ? 'Online, waiting for requests' : visibleDriverStatus === 'busy' ? 'You are marked busy' : 'You are offline'}
               </p>
               <p className="text-[0.8125rem] text-sand-500 mt-1">
-                {isAvailable
+                {visibleDriverStatus === 'online'
                   ? 'New requests will appear here.'
-                  : 'Go online to start receiving ride requests.'}
+                  : 'Go online when you are ready to receive ride requests.'}
               </p>
             </div>
           )}
@@ -390,7 +519,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
             Schedule
           </h1>
-          {myJobs.filter((b) => b.status === 'active' || b.status === 'pending')
+          {myJobs.filter((b) => ['active', 'pending', 'confirmed'].includes(b.status))
             .length === 0 ? (
             <div className="border border-sand-200 rounded-soft py-10 text-center text-[0.8125rem] text-sand-500">
               No upcoming assignments.
@@ -398,11 +527,11 @@ export default function DriverDashboard({ user, returnTarget = null }) {
           ) : (
             <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
               {myJobs
-                .filter((b) => b.status === 'active' || b.status === 'pending')
+                .filter((b) => ['active', 'pending', 'confirmed'].includes(b.status))
                 .map((b) => (
                   <div
                     key={b._id}
-                    className="flex items-center gap-4 px-4 py-3"
+                    className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.8fr)_120px_110px] md:items-center"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-[0.875rem] font-medium text-sand-900">
@@ -425,7 +554,15 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                           : ''}
                       </p>
                     </div>
-                    <StatusBadge status={b.status} />
+                    <div className="min-w-0">
+                      <p className="text-[0.8125rem] text-sand-700">
+                        {formatDateTime(b.startDate)} to {formatDateTime(b.endDate)}
+                      </p>
+                      <p className="mt-0.5 truncate text-[0.75rem] text-sand-500">
+                        {b.routeDescription || 'Pickup details not added'} · {formatDuration(b.startDate, b.endDate)}
+                      </p>
+                    </div>
+                    <StatusBadge status={displayStatus(b, now)} />
                     <span className="text-[0.875rem] font-semibold text-sand-900 tabular-nums">
                       {b.totalPrice?.toLocaleString()} EGP
                     </span>
@@ -494,20 +631,57 @@ export default function DriverDashboard({ user, returnTarget = null }) {
 }
 
 function JobRequestRow({ booking: b, onAccept, onDecline }) {
+  const phone = b.renter?.phone;
+  const whatsapp = phone ? phone.replace(/\D/g, '') : '';
+
   return (
-    <div className="flex items-center gap-4 border border-sand-200 rounded-soft px-4 py-3 bg-sand-50 hover:bg-sand-100/60 transition-colors">
+    <div className="grid gap-3 border border-sand-200 rounded-soft px-4 py-3 bg-sand-50 hover:bg-sand-100/60 transition-colors lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.7fr)_auto] lg:items-center">
       <div className="flex-1 min-w-0">
-        <p className="text-[0.875rem] font-medium text-sand-900">
-          {b.renter?.name || 'Client'}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[0.875rem] font-medium text-sand-900">
+            {b.renter?.name || 'Client'}
+          </p>
+          <StatusBadge status={displayStatus(b)} />
+        </div>
         <p className="text-[0.75rem] text-sand-500">
-          {b.vehicle ? `${b.vehicle.make} ${b.vehicle.model}` : 'Ride request'}
+          {phone || 'No phone added'}
         </p>
         <p className="text-[0.8125rem] font-semibold text-sand-800 mt-0.5 tabular-nums">
           {b.totalPrice?.toLocaleString()} EGP
         </p>
       </div>
+      <div className="min-w-0">
+        <p className="text-[0.8125rem] text-sand-700">
+          {formatDateTime(b.startDate)} to {formatDateTime(b.endDate)}
+        </p>
+        <p className="mt-0.5 text-[0.75rem] leading-5 text-sand-500">
+          {b.routeDescription || 'Pickup details not added'}
+        </p>
+        <p className="mt-0.5 text-[0.75rem] font-semibold text-sand-700">
+          Duration: {formatDuration(b.startDate, b.endDate)}
+        </p>
+      </div>
       <div className="flex gap-2 flex-shrink-0">
+        {phone && (
+          <>
+            <a
+              href={`tel:${phone}`}
+              className="text-[0.75rem] font-semibold text-primary-700 bg-sand-100 border border-sand-200 px-3.5 py-1.5 rounded-subtle hover:bg-sand-200/60 transition-colors"
+            >
+              Call
+            </a>
+            {whatsapp && (
+              <a
+                href={`https://wa.me/${whatsapp}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[0.75rem] font-semibold text-green-700 bg-green-50 border border-green-200 px-3.5 py-1.5 rounded-subtle hover:bg-green-100 transition-colors"
+              >
+                WhatsApp
+              </a>
+            )}
+          </>
+        )}
         <button
           onClick={onAccept}
           className="text-[0.75rem] font-semibold bg-primary-800 text-white px-3.5 py-1.5 rounded-subtle hover:bg-primary-900 transition-colors"

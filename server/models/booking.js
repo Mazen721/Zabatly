@@ -12,6 +12,8 @@ const bookingSchema = new mongoose.Schema({
   // 3. Booking Details
   startDate: { type: Date, default: Date.now },
   endDate: { type: Date },
+  rentalPrice: { type: Number, default: 0 },
+  serviceFee: { type: Number, default: 0 },
   totalPrice: { type: Number, default: 0 },
   paymentStatus: {
     type: String,

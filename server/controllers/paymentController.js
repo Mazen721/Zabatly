@@ -28,7 +28,7 @@ const attachPaymentsToBookings = async (bookings) => {
  * Used by bookingController after a booking is saved.
  * @returns {Promise<import('mongoose').Document|null>}
  */
-const createPaymentForBooking = async ({ bookingId, userId, amount, method, proofUrl }) => {
+const createPaymentForBooking = async ({ bookingId, userId, amount, method, proofUrl, status = 'pending' }) => {
   if (!method || !VALID_METHODS.has(method)) return null;
   const existing = await Payment.findOne({ bookingId });
   if (existing) return existing;
@@ -37,7 +37,7 @@ const createPaymentForBooking = async ({ bookingId, userId, amount, method, proo
     userId,
     amount: Number(amount) || 0,
     method,
-    status: 'pending',
+    status,
     proofUrl: proofUrl || null,
   });
 };
@@ -117,6 +117,9 @@ const updatePaymentStatus = async (req, res) => {
     if (booking) {
       if (status === 'confirmed') {
         booking.paymentStatus = 'paid';
+        if (booking.status === 'pending') {
+          booking.status = 'confirmed';
+        }
         await createNotification(
           payment.userId,
           'Your payment has been confirmed.',

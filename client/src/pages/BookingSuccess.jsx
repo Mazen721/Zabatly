@@ -8,10 +8,12 @@ const methodLabels = {
 
 const formatDate = (date) =>
   date
-    ? new Date(date).toLocaleDateString('en-GB', {
+    ? new Date(date).toLocaleString('en-GB', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       })
     : '';
 
@@ -24,7 +26,11 @@ export default function BookingSuccess() {
   const { state } = useLocation();
   const booking = state?.booking;
   const vehicle = state?.vehicle || booking?.vehicle;
+  const driver = state?.driver || booking?.driver;
   const paymentMethod = state?.paymentMethod || booking?.payment?.method;
+  const isDriverBooking = !vehicle && driver;
+  const driverPhone = driver?.phone || booking?.driver?.phone;
+  const whatsappPhone = driverPhone ? driverPhone.replace(/\D/g, '') : '';
 
   if (!booking) return <Navigate to="/dashboard" replace />;
 
@@ -42,17 +48,25 @@ export default function BookingSuccess() {
               <p className="text-[0.75rem] font-semibold uppercase tracking-[0.06em] text-green-700">Booking confirmed</p>
               <h1 className="mt-1 text-[1.65rem] font-bold leading-tight text-sand-950">Your ride is reserved</h1>
               <p className="mt-2 max-w-prose text-[0.875rem] leading-relaxed text-sand-600">
-                Payment is marked as received. The owner can now see the reservation and payment details.
+                {isDriverBooking
+                  ? 'Your driver will contact you shortly. You can also reach them directly from here.'
+                  : 'Payment is marked as received. The owner can now see the reservation and payment details.'}
               </p>
             </div>
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <img src={getImage(vehicle)} alt="" className="aspect-[4/3] w-full rounded-soft object-cover" />
+            {isDriverBooking ? (
+              <div className="flex aspect-[4/3] w-full items-center justify-center rounded-soft border border-primary-200 bg-primary-50 text-[3rem] font-bold text-primary-800">
+                {(driver?.name || 'Driver').slice(0, 1).toUpperCase()}
+              </div>
+            ) : (
+              <img src={getImage(vehicle)} alt="" className="aspect-[4/3] w-full rounded-soft object-cover" />
+            )}
             <div className="space-y-4">
               <div>
                 <h2 className="text-[1.05rem] font-semibold text-sand-950">
-                  {vehicle?.make || 'Vehicle'} {vehicle?.model || ''}
+                  {isDriverBooking ? driver?.name || 'Driver service' : `${vehicle?.make || 'Vehicle'} ${vehicle?.model || ''}`}
                 </h2>
                 <p className="mt-1 text-[0.8125rem] text-sand-500">Booking ID: <span className="font-semibold text-sand-700">{booking._id}</span></p>
               </div>
@@ -63,6 +77,25 @@ export default function BookingSuccess() {
                 <SummaryTile label="Status" value={booking.status || 'pending'} />
                 <SummaryTile label="Total" value={`${Number(booking.totalPrice || 0).toLocaleString()} EGP`} />
               </div>
+
+              {isDriverBooking && (
+                <div className="rounded-soft border border-green-200 bg-green-50 px-4 py-3">
+                  <p className="text-[0.75rem] font-semibold uppercase tracking-[0.04em] text-green-700">Driver contact</p>
+                  <p className="mt-1 text-[0.95rem] font-semibold text-sand-950">{driverPhone || 'Phone number not added yet'}</p>
+                  {driverPhone && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a href={`tel:${driverPhone}`} className="rounded-subtle bg-primary-800 px-3 py-2 text-[0.78rem] font-semibold text-white transition-colors hover:bg-primary-900">
+                        Call driver
+                      </a>
+                      {whatsappPhone && (
+                        <a href={`https://wa.me/${whatsappPhone}`} target="_blank" rel="noreferrer" className="rounded-subtle border border-green-200 bg-sand-50 px-3 py-2 text-[0.78rem] font-semibold text-green-700 transition-colors hover:bg-green-50">
+                          WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {booking.payment?.proofUrl && (
                 <a

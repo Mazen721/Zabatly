@@ -3,9 +3,9 @@ const User = require('../models/User');
 const Vehicle = require('../models/vehicle');
 const { createPaymentForBooking, attachPaymentsToBookings } = require('./paymentController');
 const { createNotification } = require('../utils/notificationHelper');
+const { releaseExpiredBookings, scheduleNextBookingExpiry, blockingStatuses } = require('../utils/bookingExpiration');
 
 const sameId = (a, b) => a && b && a.toString() === b.toString();
-const blockingStatuses = ['pending', 'confirmed', 'active'];
 const VALID_PAYMENT_METHODS = new Set(['vodafone_cash', 'instapay', 'card']);
 
 const parseDateBoundary = (value, endOfDay = false) => {
@@ -19,10 +19,12 @@ const parseDateBoundary = (value, endOfDay = false) => {
 
 const formatDateForMessage = (value) =>
   value
-    ? new Date(value).toLocaleDateString('en-GB', {
+    ? new Date(value).toLocaleString('en-GB', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       })
     : '';
 
@@ -48,10 +50,24 @@ const findNearestConflict = async (vehicle, startDate, endDate) => Booking.findO
   .select('startDate endDate status')
   .sort({ startDate: 1 });
 
+const buildDriverOverlapQuery = (driver, startDate, endDate) => ({
+  driver,
+  status: { $in: blockingStatuses },
+  startDate: { $lte: endDate },
+  endDate: { $gte: startDate },
+});
+
+const findNearestDriverConflict = async (driver, startDate, endDate) => Booking.findOne(
+  buildDriverOverlapQuery(driver, startDate, endDate)
+)
+  .select('startDate endDate status')
+  .sort({ startDate: 1 });
+
 // @desc    Create a Booking (Vehicle OR Driver)
 // @route   POST /api/bookings
 const createBooking = async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const {
       vehicle,
       driver,
@@ -62,6 +78,8 @@ const createBooking = async (req, res) => {
       needsDriver,
       routeDescription,
       paymentMethod,
+      rentalPrice,
+      serviceFee,
     } = req.body;
 
     if (!vehicle && !driver) {
@@ -111,6 +129,10 @@ const createBooking = async (req, res) => {
     }
 
     if (!vehicle && driver) {
+      if (!startDate || !endDate) {
+        return res.status(400).json({ message: 'Please select reservation start and end times.' });
+      }
+
       if (req.user.role === 'driver') {
         return res.status(400).json({ message: "Drivers can't book other drivers." });
       }
@@ -124,35 +146,64 @@ const createBooking = async (req, res) => {
         return res.status(404).json({ message: 'Driver not found.' });
       }
 
-      if (targetDriver.isAvailable === false || targetDriver.currentRide) {
+      const targetDriverStatus = targetDriver.driverStatus || (targetDriver.isAvailable === false ? 'offline' : 'online');
+      if (targetDriverStatus !== 'online' || targetDriver.currentRide) {
         return res.status(400).json({ message: 'Driver is already on a trip.' });
+      }
+
+      const requestedStart = parseDateBoundary(startDate);
+      const requestedEnd = parseDateBoundary(endDate);
+
+      if (!requestedStart || !requestedEnd || requestedStart >= requestedEnd) {
+        return res.status(400).json({ message: 'Please select a valid reservation time range.' });
+      }
+
+      const existing = await findNearestDriverConflict(driver, requestedStart, requestedEnd);
+      if (existing) {
+        return res.status(409).json({
+          message: `This driver is already reserved from ${formatDateForMessage(existing.startDate)} to ${formatDateForMessage(existing.endDate)}.`,
+          conflict: existing,
+        });
       }
 
       bookingDriver = targetDriver._id;
     }
 
     const proofUrl = req.file ? req.file.path : '';
+    const vehicleRentalPrice = Number(rentalPrice ?? totalPrice) || 0;
+    const zabatlyServiceFee = Number(serviceFee) || 0;
+    const finalTotalPrice = Number(totalPrice) || vehicleRentalPrice + zabatlyServiceFee;
+    const paymentConfirmed = paymentMethod === 'card';
 
     const booking = new Booking({
       vehicle,
       renter: req.user.id,
       owner: bookingOwner,
       driver: bookingDriver,
-      startDate,
-      endDate,
-      totalPrice,
-      paymentStatus: 'unpaid',
+      startDate: vehicle ? parseDateBoundary(startDate) : parseDateBoundary(startDate),
+      endDate: vehicle ? parseDateBoundary(endDate, true) : parseDateBoundary(endDate),
+      rentalPrice: vehicleRentalPrice,
+      serviceFee: zabatlyServiceFee,
+      totalPrice: finalTotalPrice,
+      paymentStatus: paymentConfirmed ? 'paid' : 'unpaid',
+      status: paymentConfirmed ? 'confirmed' : 'pending',
       withDriver: withDriver || needsDriver || false,
       routeDescription,
     });
 
     await booking.save();
+    if (bookingDriver) {
+      await User.findByIdAndUpdate(bookingDriver, { isAvailable: false, driverStatus: 'busy' });
+    }
+    scheduleNextBookingExpiry().catch((error) => console.error('Booking expiry schedule failed:', error.message));
 
     if (bookingOwner) {
       await createNotification(
         bookingOwner,
-        'You have a new booking request for your vehicle.',
-        'new_booking_request'
+        paymentConfirmed
+          ? 'You have a new confirmed booking for your vehicle.'
+          : 'You have a new booking request for your vehicle.',
+        paymentConfirmed ? 'booking_confirmed' : 'new_booking_request'
       );
     } else if (bookingDriver) {
       await createNotification(
@@ -165,11 +216,16 @@ const createBooking = async (req, res) => {
     await createPaymentForBooking({
       bookingId: booking._id,
       userId: req.user._id,
-      amount: totalPrice,
+      amount: finalTotalPrice,
       method: paymentMethod,
       proofUrl,
+      status: paymentConfirmed ? 'confirmed' : 'pending',
     });
 
+    await booking.populate([
+      { path: 'renter', select: 'name phone' },
+      { path: 'driver', select: 'name phone' },
+    ]);
     const [bookingWithPayment] = await attachPaymentsToBookings([booking.toObject()]);
     res.status(201).json(bookingWithPayment);
   } catch (error) {
@@ -181,6 +237,7 @@ const createBooking = async (req, res) => {
 // @route   GET /api/bookings/availability
 const checkVehicleAvailability = async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const { vehicleId, startDate, endDate } = req.query;
 
     if (!vehicleId) {
@@ -242,13 +299,14 @@ const checkVehicleAvailability = async (req, res) => {
 // @route   GET /api/bookings
 const getMyBookings = async (req, res) => {
   try {
+    await releaseExpiredBookings();
     const bookings = await Booking.find({
       $or: [{ renter: req.user.id }, { owner: req.user.id }, { driver: req.user.id }],
     })
       .populate('vehicle', 'make model images')
       .populate('renter', 'name phone')
       .populate('owner', 'name')
-      .populate('driver', 'name')
+      .populate('driver', 'name phone')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -287,6 +345,7 @@ const updateBookingStatus = async (req, res) => {
       if (booking.driver) {
         await User.findByIdAndUpdate(booking.driver, {
           isAvailable: false,
+          driverStatus: 'busy',
           currentRide: booking._id,
         });
       }
@@ -323,7 +382,8 @@ const updateBookingStatus = async (req, res) => {
       }
       if (booking.driver) {
         await User.findByIdAndUpdate(booking.driver, {
-          isAvailable: true,
+          isAvailable: false,
+          driverStatus: 'busy',
           currentRide: null,
         });
       }
@@ -338,11 +398,15 @@ const updateBookingStatus = async (req, res) => {
       if (!canCancel) {
         return res.status(401).json({ message: 'Not authorized to cancel this booking.' });
       }
+      if (booking.vehicle && ownerId === userId && booking.paymentStatus === 'paid') {
+        return res.status(400).json({ message: 'Paid bookings are confirmed and cannot be declined by the owner.' });
+      }
 
       booking.status = 'cancelled';
       if (booking.driver) {
         await User.findByIdAndUpdate(booking.driver, {
-          isAvailable: true,
+          isAvailable: false,
+          driverStatus: 'busy',
           currentRide: null,
         });
       }
@@ -355,11 +419,12 @@ const updateBookingStatus = async (req, res) => {
     }
 
     await booking.save();
+    scheduleNextBookingExpiry().catch((error) => console.error('Booking expiry schedule failed:', error.message));
     await booking.populate([
       { path: 'vehicle', select: 'make model images' },
       { path: 'renter', select: 'name phone' },
       { path: 'owner', select: 'name' },
-      { path: 'driver', select: 'name' },
+      { path: 'driver', select: 'name phone' },
     ]);
     res.json(booking);
   } catch (error) {
@@ -394,7 +459,8 @@ const finishRide = async (req, res) => {
 
       if (booking.driver) {
         await User.findByIdAndUpdate(booking.driver, {
-          isAvailable: true,
+          isAvailable: false,
+          driverStatus: 'busy',
           currentRide: null,
         });
       }
@@ -411,11 +477,12 @@ const finishRide = async (req, res) => {
     }
 
     await booking.save();
+    scheduleNextBookingExpiry().catch((error) => console.error('Booking expiry schedule failed:', error.message));
     await booking.populate([
       { path: 'vehicle', select: 'make model images' },
       { path: 'renter', select: 'name phone' },
       { path: 'owner', select: 'name' },
-      { path: 'driver', select: 'name' },
+      { path: 'driver', select: 'name phone' },
     ]);
     res.json(booking);
   } catch (error) {

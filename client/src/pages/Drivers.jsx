@@ -25,6 +25,12 @@ function asList(value) {
   return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
+function toDateTimeLocal(date) {
+  const value = new Date(date);
+  value.setMinutes(value.getMinutes() - value.getTimezoneOffset());
+  return value.toISOString().slice(0, 16);
+}
+
 function DriverSkeleton() {
   return (
     <div className="rounded-soft border border-sand-200 bg-sand-50 p-5">
@@ -68,9 +74,12 @@ function DriverCard({ driver, onSelect, currentUser }) {
   const languages = asList(driver.languagesSpoken);
   const isCurrentDriver = currentUser?._id === driver._id;
   const driverUserBlocked = currentUser?.role === 'driver';
-  const canRequest = driver.isAvailable && !driverUserBlocked && !isCurrentDriver;
-  const buttonLabel = !driver.isAvailable
-    ? 'Booked'
+  const driverStatus = driver.driverStatus || (driver.isAvailable ? 'online' : 'offline');
+  const canRequest = driverStatus === 'online' && driver.isAvailable && !driverUserBlocked && !isCurrentDriver;
+  const buttonLabel = driverStatus === 'busy'
+    ? 'Busy'
+    : driverStatus === 'offline'
+    ? 'Offline'
     : driverUserBlocked
     ? 'Drivers cannot request'
     : isCurrentDriver
@@ -109,11 +118,13 @@ function DriverCard({ driver, onSelect, currentUser }) {
         </div>
 
         <span className={`shrink-0 rounded-subtle border px-2 py-1 text-[0.72rem] font-semibold ${
-          driver.isAvailable
-            ? 'border-primary-200 bg-primary-50 text-primary-800'
+          driverStatus === 'online'
+            ? 'border-green-200 bg-green-50 text-green-700'
+            : driverStatus === 'busy'
+            ? 'border-red-200 bg-red-50 text-red-700'
             : 'border-sand-200 bg-sand-100 text-sand-500'
         }`}>
-          {driver.isAvailable ? 'Available' : 'On trip'}
+          {driverStatus === 'online' ? 'Online' : driverStatus === 'busy' ? 'Busy' : 'Offline'}
         </span>
       </div>
 
@@ -183,6 +194,8 @@ export default function Drivers() {
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [route, setRoute] = useState('');
+  const [reservationStart, setReservationStart] = useState(() => toDateTimeLocal(new Date(Date.now() + 60 * 60 * 1000)));
+  const [reservationEnd, setReservationEnd] = useState(() => toDateTimeLocal(new Date(Date.now() + 3 * 60 * 60 * 1000)));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [routeError, setRouteError] = useState('');
@@ -251,7 +264,7 @@ export default function Drivers() {
   }, [drivers, search, areaFilter, availabilityFilter]);
 
   const stats = useMemo(() => {
-    const available = filteredDrivers.filter((driver) => driver.isAvailable).length;
+    const available = filteredDrivers.filter((driver) => (driver.driverStatus || (driver.isAvailable ? 'online' : 'offline')) === 'online' && driver.isAvailable).length;
     const rated = filteredDrivers.filter((driver) => Number(driver.rating || 0) > 0);
     const averageRate = filteredDrivers.length
       ? Math.round(filteredDrivers.reduce((sum, driver) => sum + Number(driver.dailyRate || 200), 0) / filteredDrivers.length)
@@ -267,6 +280,8 @@ export default function Drivers() {
     if (currentUser?.role === 'driver' || currentUser?._id === driver._id) return;
     setSelectedDriver(driver);
     setRoute('');
+    setReservationStart(toDateTimeLocal(new Date(Date.now() + 60 * 60 * 1000)));
+    setReservationEnd(toDateTimeLocal(new Date(Date.now() + 3 * 60 * 60 * 1000)));
     setRouteError('');
   };
 
@@ -280,6 +295,10 @@ export default function Drivers() {
   const requestDriver = async () => {
     if (!route.trim()) {
       setRouteError('Tell the driver your pickup, drop-off, and timing.');
+      return;
+    }
+    if (!reservationStart || !reservationEnd || new Date(reservationStart) >= new Date(reservationEnd)) {
+      setRouteError('Choose a valid start and end time for the reservation.');
       return;
     }
 
@@ -301,18 +320,24 @@ export default function Drivers() {
       setSubmitting(true);
       setRouteError('');
       const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-      await axios.post(`${API}/api/bookings`, {
+      const { data } = await axios.post(`${API}/api/bookings`, {
         driver: selectedDriver._id,
         renter: userInfo._id,
         routeDescription: route,
         totalPrice: selectedDriver.dailyRate || 200,
-        startDate: new Date(),
-        endDate: new Date(),
+        startDate: new Date(reservationStart).toISOString(),
+        endDate: new Date(reservationEnd).toISOString(),
         paymentMethod: 'card',
       }, config);
 
       setSelectedDriver(null);
-      navigate('/dashboard');
+      navigate('/booking-success', {
+        state: {
+          booking: data,
+          driver: data.driver || selectedDriver,
+          paymentMethod: 'card',
+        },
+      });
     } catch (err) {
       setRouteError(err.response?.data?.message || 'Could not send this request. Please try again.');
     } finally {
@@ -468,6 +493,39 @@ export default function Drivers() {
                 <Metric label="Rate" value={`${selectedDriver.dailyRate || 200} EGP`} />
                 <Metric label="Rating" value={formatRating(selectedDriver.rating) === 'New' ? 'New' : `${formatRating(selectedDriver.rating)}/5`} />
                 <Metric label="Reviews" value={selectedDriver.numReviews || 'None'} />
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="block text-[0.75rem] font-semibold uppercase tracking-wide text-sand-500">
+                    Start time
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={reservationStart}
+                    min={toDateTimeLocal(new Date())}
+                    onChange={(event) => {
+                      setReservationStart(event.target.value);
+                      if (routeError) setRouteError('');
+                    }}
+                    className="mt-2 w-full rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2.5 text-[0.85rem] text-sand-950 focus:border-primary-600 focus:outline-none focus:ring-1 focus:ring-primary-600"
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-[0.75rem] font-semibold uppercase tracking-wide text-sand-500">
+                    End time
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={reservationEnd}
+                    min={reservationStart || toDateTimeLocal(new Date())}
+                    onChange={(event) => {
+                      setReservationEnd(event.target.value);
+                      if (routeError) setRouteError('');
+                    }}
+                    className="mt-2 w-full rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2.5 text-[0.85rem] text-sand-950 focus:border-primary-600 focus:outline-none focus:ring-1 focus:ring-primary-600"
+                  />
+                </label>
               </div>
 
               <label htmlFor="route" className="mt-5 block text-[0.75rem] font-semibold uppercase tracking-wide text-sand-500">

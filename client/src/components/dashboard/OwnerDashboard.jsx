@@ -34,6 +34,51 @@ const paymentLabels = {
   instapay: 'InstaPay',
 };
 
+const formatRentalDate = (value) =>
+  value
+    ? new Date(value).toLocaleString('en-GB', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : 'Not set';
+
+const getRentalEndDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (
+    date.getHours() === 0 &&
+    date.getMinutes() === 0 &&
+    date.getSeconds() === 0 &&
+    date.getMilliseconds() === 0
+  ) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date;
+};
+
+const getRemainingText = (endDate, now) => {
+  const end = getRentalEndDate(endDate);
+  if (!end) return 'Rental end date not set';
+
+  const diff = end.getTime() - now.getTime();
+  if (diff <= 0) return 'Rental period ended';
+
+  const totalMinutes = Math.ceil(diff / 60000);
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  return `${days} days, ${hours} hours, ${minutes} minutes`;
+};
+
+const isPaidBooking = (booking) =>
+  booking.paymentStatus === 'paid' || booking.payment?.status === 'confirmed';
+
+const ownerRentalAmount = (booking) => booking.rentalPrice || booking.totalPrice || 0;
+
 const SkeletonBlock = () => (
   <div className="animate-pulse space-y-3 py-4">
     <div className="h-3 w-40 bg-sand-200 rounded" />
@@ -61,6 +106,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -85,14 +131,20 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     fetchData();
   }, [user.token, user._id]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const myBookings = bookings.filter(
     (b) => b.owner?._id === user._id || b.owner === user._id
   );
-  const pendingRequests = myBookings.filter((b) => b.status === 'pending');
+  const pendingRequests = myBookings.filter((b) => b.status === 'pending' && !isPaidBooking(b));
   const activeRentals = myBookings.filter((b) => b.status === 'active');
+  const confirmedBookings = myBookings.filter((b) => b.status === 'confirmed');
   const completedBookings = myBookings.filter((b) => b.status === 'completed');
   const revenue = completedBookings.reduce(
-    (sum, b) => sum + (b.totalPrice || 0),
+    (sum, b) => sum + ownerRentalAmount(b),
     0
   );
   const availableCount = vehicles.filter((v) => v.isAvailable !== false).length;
@@ -159,6 +211,17 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       ),
     },
     {
+      id: 'bookings',
+      label: 'Bookings',
+      badge: activeRentals.length + confirmedBookings.length || null,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2.5" y="3" width="11" height="10.5" rx="1.5" />
+          <path d="M5 1.8v2.4M11 1.8v2.4M2.5 6h11" />
+        </svg>
+      ),
+    },
+    {
       id: 'earnings',
       label: 'Earnings',
       icon: (
@@ -202,7 +265,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       <span className="font-semibold text-sand-800">
         {pendingRequests.length} pending request{pendingRequests.length > 1 ? 's' : ''}
       </span>
-      <span className="text-sand-500">·</span>
+      <span className="text-sand-500">/</span>
       <button
         onClick={() => setSection('requests')}
         className="text-[0.8125rem] font-medium text-primary-700 hover:text-primary-900 transition-colors"
@@ -216,6 +279,20 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       <span className="font-semibold text-sand-800">
         {activeRentals.length} active rental{activeRentals.length > 1 ? 's' : ''}
       </span>
+    </div>
+  ) : confirmedBookings.length > 0 ? (
+    <div className="flex items-center gap-3">
+      <span className="inline-block w-2 h-2 rounded-full bg-primary-600" />
+      <span className="font-semibold text-sand-800">
+        {confirmedBookings.length} confirmed booking{confirmedBookings.length > 1 ? 's' : ''}
+      </span>
+      <span className="text-sand-500">/</span>
+      <button
+        onClick={() => setSection('bookings')}
+        className="text-[0.8125rem] font-medium text-primary-700 hover:text-primary-900 transition-colors"
+      >
+        View bookings
+      </button>
     </div>
   ) : null;
 
@@ -296,45 +373,12 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
             ) : (
               <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
                 {activeRentals.map((b) => (
-                  <div
+                  <BookingRow
                     key={b._id}
-                    className="flex items-center gap-4 px-4 py-3 hover:bg-sand-100/60 transition-colors duration-100"
-                  >
-                    <img
-                      src={getImg(b.vehicle)}
-                      alt=""
-                      className="w-12 h-9 rounded object-cover bg-sand-100"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[0.875rem] font-medium text-sand-900 truncate">
-                        {b.vehicle?.make} {b.vehicle?.model}
-                      </p>
-                      <p className="text-[0.75rem] text-sand-500">
-                        Rented by {b.renter?.name || 'User'}
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <PaymentProofLink path={b.payment?.proofUrl} />
-                      {b.renterFinished ? (
-                        <button
-                          onClick={() => updateStatus(b._id, 'completed')}
-                          className="text-[0.75rem] font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-subtle hover:bg-green-100 transition-colors"
-                        >
-                          Confirm Return
-                        </button>
-                      ) : (
-                        <p className="text-[0.75rem] text-sand-500">
-                          Returns{' '}
-                          {b.endDate
-                            ? new Date(b.endDate).toLocaleDateString('en-GB', {
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : '—'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+                    booking={b}
+                    now={now}
+                    onComplete={() => updateStatus(b._id, 'completed')}
+                  />
                 ))}
               </div>
             )}
@@ -405,7 +449,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                         </span>
                       </div>
                       <span className="text-[0.8125rem] text-sand-700 tabular-nums">
-                        {v.pricePerDay?.toLocaleString() || '—'} EGP/day
+                        {v.pricePerDay?.toLocaleString() || 'Not set'} EGP/day
                       </span>
                       <span className="text-[0.8125rem] text-sand-600 tabular-nums">
                         {vBookings.length}
@@ -469,15 +513,54 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-[0.8125rem] text-sand-800 truncate">
-                        {b.vehicle?.make} {b.vehicle?.model} · {b.renter?.name || 'User'}
+                        {b.vehicle?.make} {b.vehicle?.model} / {b.renter?.name || 'User'}
                       </p>
                     </div>
                     <span className="text-[0.8125rem] font-semibold text-sand-900 tabular-nums">
-                      {b.totalPrice?.toLocaleString()} EGP
+                      {ownerRentalAmount(b).toLocaleString()} EGP
                     </span>
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bookings */}
+      {section === 'bookings' && (
+        <div>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-[1.25rem] font-semibold text-sand-950">
+                Bookings
+              </h1>
+              <p className="mt-1 text-[0.8125rem] text-sand-500">
+                Confirmed rentals are paid and cannot be declined.
+              </p>
+            </div>
+          </div>
+
+          {loading ? (
+            <SkeletonBlock />
+          ) : myBookings.length === 0 ? (
+            <div className="border border-sand-200 rounded-soft py-10 text-center text-[0.8125rem] text-sand-500">
+              No bookings for your vehicles yet.
+            </div>
+          ) : (
+            <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
+              {[...myBookings]
+                .sort((a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0))
+                .map((b) => (
+                  <BookingRow
+                    key={b._id}
+                    booking={b}
+                    now={now}
+                    onAccept={() => updateStatus(b._id, 'active')}
+                    onDecline={() => updateStatus(b._id, 'cancelled')}
+                    onComplete={() => updateStatus(b._id, 'completed')}
+                  />
+                ))}
             </div>
           )}
         </div>
@@ -529,10 +612,10 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                             day: 'numeric',
                             year: 'numeric',
                           })
-                        : '—'}
+                        : 'Not set'}
                     </span>
                     <span className="text-[0.875rem] font-semibold text-sand-900 md:text-right tabular-nums">
-                      {b.totalPrice?.toLocaleString()} EGP
+                      {ownerRentalAmount(b).toLocaleString()} EGP
                     </span>
                   </div>
                 ))}
@@ -583,6 +666,92 @@ function RequestRow({ booking: b, onAccept, onDecline }) {
         >
           Decline
         </button>
+      </div>
+    </div>
+  );
+}
+
+function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
+  const paid = isPaidBooking(b);
+  const canDecline = b.status === 'pending' && !paid;
+  const canAccept = b.status === 'pending' && !paid;
+  const remaining = getRemainingText(b.endDate, now);
+
+  return (
+    <div className="px-4 py-3 hover:bg-sand-100/60 transition-colors duration-100">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <img
+            src={getImg(b.vehicle)}
+            alt=""
+            className="w-12 h-9 rounded object-cover bg-sand-100 flex-shrink-0"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[0.875rem] font-medium text-sand-900 truncate">
+                {b.vehicle?.make} {b.vehicle?.model}
+              </p>
+              <StatusBadge status={b.status} />
+              {paid && (
+                <span className="inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold bg-green-50 text-green-700 border border-green-200">
+                  Paid
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-[0.75rem] text-sand-500">
+              Rented by {b.renter?.name || 'User'}
+            </p>
+            <div className="mt-3 grid gap-2 text-[0.75rem] sm:grid-cols-2">
+              <div className="rounded-subtle bg-sand-100 px-3 py-2">
+                <span className="block font-semibold uppercase tracking-[0.04em] text-sand-500">Start date</span>
+                <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(b.startDate)}</span>
+              </div>
+              <div className="rounded-subtle bg-sand-100 px-3 py-2">
+                <span className="block font-semibold uppercase tracking-[0.04em] text-sand-500">End date</span>
+                <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(getRentalEndDate(b.endDate) || b.endDate)}</span>
+              </div>
+            </div>
+            <div className="mt-2 rounded-subtle border border-primary-100 bg-primary-50 px-3 py-2 text-[0.78rem] font-semibold tabular-nums text-primary-800">
+              Rental ends in: {remaining}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <span className="text-[0.8125rem] font-semibold tabular-nums text-sand-900">
+            {(b.totalPrice || 0).toLocaleString()} EGP
+          </span>
+          <PaymentProofLink path={b.payment?.proofUrl} />
+          {canAccept && (
+            <button
+              onClick={onAccept}
+              className="text-[0.75rem] font-semibold bg-primary-800 text-white px-3.5 py-1.5 rounded-subtle hover:bg-primary-900 transition-colors"
+            >
+              Accept
+            </button>
+          )}
+          {canDecline && (
+            <button
+              onClick={onDecline}
+              className="text-[0.75rem] font-semibold text-sand-600 bg-sand-100 border border-sand-200 px-3.5 py-1.5 rounded-subtle hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
+            >
+              Decline
+            </button>
+          )}
+          {b.status === 'active' && b.renterFinished && (
+            <button
+              onClick={onComplete}
+              className="text-[0.75rem] font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-subtle hover:bg-green-100 transition-colors"
+            >
+              Confirm Return
+            </button>
+          )}
+          {paid && b.status === 'confirmed' && (
+            <span className="text-[0.75rem] font-semibold text-sand-600">
+              Auto-confirmed
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

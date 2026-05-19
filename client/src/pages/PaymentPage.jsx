@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API } from '../config/api';
 const VODAFONE_NUMBER = '01090923550';
 const INSTAPAY_ID = 'mazen721@instapay';
+const SERVICE_FEE_RATE = 0.1;
 
 const methods = [
   { id: 'card', label: 'Credit / Debit Card', helper: 'Visa and Mastercard' },
@@ -35,9 +36,42 @@ const formatCardNumber = (value) =>
 const detectBrand = (number) => {
   const digits = number.replace(/\D/g, '');
   if (digits.startsWith('4')) return 'Visa';
-  if (/^5[1-5]/.test(digits) || /^2[2-7]/.test(digits)) return 'Mastercard';
+  const firstTwo = Number(digits.slice(0, 2));
+  const firstFour = Number(digits.slice(0, 4));
+  if ((firstTwo >= 51 && firstTwo <= 55) || (firstFour >= 2221 && firstFour <= 2720)) {
+    return 'Mastercard';
+  }
   return 'Card';
 };
+
+const cardThemes = {
+  Visa: {
+    name: 'Visa detected',
+    previewStyle: {
+      background: 'linear-gradient(135deg, #1434cb 0%, #1b2b44 62%, #f7b600 150%)',
+    },
+    panelStyle: { borderColor: 'rgba(20, 52, 203, 0.34)', backgroundColor: 'rgba(20, 52, 203, 0.04)' },
+    labelClass: 'text-primary-700',
+  },
+  Mastercard: {
+    name: 'Mastercard detected',
+    previewStyle: {
+      background: 'linear-gradient(135deg, #eb001b 0%, #2c2723 48%, #f79e1b 130%)',
+    },
+    panelStyle: { borderColor: 'rgba(221, 143, 36, 0.45)', backgroundColor: 'rgba(221, 143, 36, 0.08)' },
+    labelClass: 'text-signal-700',
+  },
+  Card: {
+    name: 'Card details',
+    previewStyle: {
+      background: '#1b2b44',
+    },
+    panelStyle: null,
+    labelClass: 'text-sand-500',
+  },
+};
+
+const formatMoney = (value) => `${Number(value || 0).toLocaleString()} EGP`;
 
 function FloatingInput({ label, value, onChange, placeholder, maxLength, inputMode = 'text' }) {
   return (
@@ -182,6 +216,10 @@ export default function PaymentPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const brand = useMemo(() => detectBrand(cardNumber), [cardNumber]);
+  const theme = cardThemes[brand] || cardThemes.Card;
+  const vehiclePrice = Number(draft?.payload?.totalPrice || 0);
+  const serviceFee = Math.round(vehiclePrice * SERVICE_FEE_RATE * 100) / 100;
+  const finalTotal = vehiclePrice + serviceFee;
 
   if (!draft) {
     return (
@@ -249,8 +287,12 @@ export default function PaymentPage() {
     try {
       const formData = new FormData();
       Object.entries(draft.payload).forEach(([key, value]) => {
+        if (key === 'totalPrice') return;
         formData.append(key, value ?? '');
       });
+      formData.append('rentalPrice', vehiclePrice);
+      formData.append('serviceFee', serviceFee);
+      formData.append('totalPrice', finalTotal);
       formData.append('paymentMethod', method);
       if (proof) formData.append('paymentProof', proof);
 
@@ -313,16 +355,22 @@ export default function PaymentPage() {
               ))}
             </div>
 
-            <div className="rounded-soft border border-sand-200 bg-sand-50 p-5 transition-all duration-200 ease-out-quart">
+            <div
+              className="rounded-soft border border-sand-200 bg-sand-50 p-5 transition-all duration-200 ease-out-quart"
+              style={method === 'card' && theme.panelStyle ? theme.panelStyle : undefined}
+            >
               {method === 'card' && (
                 <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]">
-                  <div className="rounded-soft bg-primary-800 p-5 text-white shadow-sm transition-transform duration-300 ease-out-quart hover:-translate-y-0.5">
+                  <div
+                    className="rounded-soft p-5 text-white shadow-sm transition-transform duration-300 ease-out-quart hover:-translate-y-0.5"
+                    style={theme.previewStyle}
+                  >
                     <div className="flex items-center justify-between">
                       <span className="text-[0.75rem] font-semibold text-primary-100">Zabatly Pay</span>
                       <BrandMark brand={brand} />
                     </div>
                     <p className="mt-10 font-mono text-[1.05rem] tracking-[0.08em]">
-                      {cardNumber || '•••• •••• •••• ••••'}
+                      {cardNumber || '0000 0000 0000 0000'}
                     </p>
                     <div className="mt-8 flex items-end justify-between gap-4">
                       <div>
@@ -337,6 +385,9 @@ export default function PaymentPage() {
                   </div>
 
                   <div className="space-y-4">
+                    <div className={`rounded-subtle border border-sand-200 bg-sand-50 px-3 py-2 text-[0.75rem] font-semibold ${theme.labelClass}`}>
+                      {theme.name}
+                    </div>
                     <FloatingInput label="Card Holder Name" value={cardName} onChange={(event) => setCardName(event.target.value)} placeholder="Mazen Ahmed" />
                     <div className="relative">
                       <FloatingInput
@@ -448,9 +499,19 @@ export default function PaymentPage() {
                 <span className="text-sand-500">Payment</span>
                 <span className="font-semibold text-sand-800">{methodLabel}</span>
               </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-sand-500">Vehicle Price</span>
+                <span className="font-semibold tabular-nums text-sand-800">{formatMoney(vehiclePrice)}</span>
+              </div>
+              <div className="rounded-subtle border border-signal-200 bg-signal-50 px-3 py-2">
+                <div className="flex justify-between gap-4">
+                  <span className="font-semibold text-signal-700">Zabatly Fee (10%)</span>
+                  <span className="font-bold tabular-nums text-signal-700">{formatMoney(serviceFee)}</span>
+                </div>
+              </div>
               <div className="flex justify-between gap-4 border-t border-sand-200 pt-3 text-[0.95rem]">
                 <span className="font-semibold text-sand-950">Total</span>
-                <span className="font-bold tabular-nums text-primary-800">{Number(draft.payload.totalPrice).toLocaleString()} EGP</span>
+                <span className="font-bold tabular-nums text-primary-800">{formatMoney(finalTotal)}</span>
               </div>
             </div>
             <button
