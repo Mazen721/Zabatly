@@ -214,7 +214,6 @@ export default function Profile() {
     const formData = new FormData();
     formData.append('file', kycFile);
     formData.append('doc_type', docType);
-    formData.append('run_fraud_check', 'true');
 
     try {
       setKycLoading(true);
@@ -229,8 +228,13 @@ export default function Profile() {
       const updated = { ...user };
       if (docType === 'driver_license') {
         updated.driving_license = {
+          ...(updated.driving_license || {}),
           is_verified: data.status === 'verified',
-          extracted_data: { status: data.status },
+          status: data.status,
+          extracted_data: {
+            ...(updated.driving_license?.extracted_data || {}),
+            status: data.status,
+          },
         };
       } else {
         updated.kyc_status = data.status;

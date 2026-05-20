@@ -16,8 +16,9 @@ const CarLicenseUpload = ({ vehicleId, onVerificationSuccess }) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('doc_type', 'car_license');
-    formData.append('run_fraud_check', 'true');
-    formData.append('vehicleId', vehicleId); // CRITICAL: Tells the backend which car this is
+    if (vehicleId) {
+      formData.append('vehicleId', vehicleId); // Optional: Tells the backend which car this is (if available)
+    }
 
     try {
       setLoading(true);

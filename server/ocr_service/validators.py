@@ -132,6 +132,16 @@ def validate_national_id(fields: dict) -> list[str]:
         errors.append(f"National ID must contain only digits: '{nid}'")
         return errors
 
+    # Checksum validation (digit 14)
+    weights = [2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+    total_sum = sum(int(nid[i]) * weights[i] for i in range(13))
+    remainder = total_sum % 11
+    digit14 = int(nid[13])
+    if remainder >= 10:
+        errors.append("Invalid National ID checksum.")
+    elif remainder != digit14:
+        errors.append(f"Invalid National ID checksum. Digit 14 is {digit14}, but calculated checksum is {remainder}.")
+
     # Century digit
     century_digit = nid[0]
     if century_digit not in ("2", "3"):
@@ -235,6 +245,14 @@ def validate_driving_license(fields: dict) -> list[str]:
     license_num = fields.get("license_number", "")
     if not license_num:
         errors.append("License number is missing.")
+    else:
+        # Normalize digits and strip spaces/dashes
+        license_num = _normalize_digits(str(license_num)).strip()
+        license_num = re.sub(r"[\s\-]", "", license_num)
+        if not license_num.isdigit():
+            errors.append("Driving license number must contain only digits.")
+        elif not (7 <= len(license_num) <= 10):
+            errors.append(f"Egyptian driving license number must be between 7 and 10 digits, got {len(license_num)}.")
 
     # Validate license type
     license_type = (fields.get("license_type") or "").strip().lower()

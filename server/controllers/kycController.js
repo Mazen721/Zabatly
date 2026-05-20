@@ -3,8 +3,11 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Vehicle = require('../models/vehicle');
+const KycAttempt = require('../models/KycAttempt');
+const KycAuditLog = require('../models/KycAuditLog');
 const { createNotification } = require('../utils/notificationHelper');
 const {
   OCR_MODEL,
@@ -12,6 +15,7 @@ const {
   getImageMimeType,
   hasGeminiApiKey,
 } = require('../utils/geminiFallback');
+const { validateEgyptianNID } = require('../utils/egyptianIdValidator');
 
 const validTypes = ['national_id', 'passport', 'driver_license', 'car_license'];
 const adminReviewDocTypes = ['national_id', 'passport', 'driver_license'];
@@ -28,6 +32,16 @@ const normalizeDigits = (value = '') => String(value)
   .replace(/[\u06F0-\u06F9]/g, (digit) => String(digit.charCodeAt(0) - 0x06F0));
 
 const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
+
+const normalizeIdentifier = (value = '') => normalizeDigits(value).trim().replace(/[\s-]/g, '').toUpperCase();
+
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const flexibleIdentifierRegex = (value = '') => {
+  const normalized = normalizeIdentifier(value);
+  if (!normalized) return null;
+  return new RegExp(`^\\s*${normalized.split('').map(escapeRegex).join('[\\s-]*')}\\s*$`, 'i');
+};
 
 const normalizeRiskLevel = (riskLevel) => {
   if (['CLEAN', 'MEDIUM_RISK', 'HIGH_RISK'].includes(riskLevel)) return riskLevel;
@@ -196,6 +210,47 @@ const runGeminiOcrFallback = async (filePath, docType) => {
   return normalizedResponse;
 };
 
+const parseDateFlexible = (dateStr) => {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const cleaned = dateStr.trim();
+
+  // Try standard formats like YYYY-MM-DD, DD-MM-YYYY, DD/MM/YYYY
+  const parts = cleaned.split(/[-/.]/);
+  if (parts.length === 3 && parts.every((part) => /^\d{1,4}$/.test(part))) {
+    let y;
+    let m;
+    let d;
+
+    // Check if YYYY is first
+    if (parts[0].length === 4) {
+      y = parseInt(parts[0], 10);
+      m = parseInt(parts[1], 10);
+      d = parseInt(parts[2], 10);
+    } else if (parts[2].length === 4) {
+      y = parseInt(parts[2], 10);
+      d = parseInt(parts[0], 10);
+      m = parseInt(parts[1], 10);
+    }
+
+    if (y && m && d) {
+      const dateVal = new Date(y, m - 1, d);
+      if (
+        dateVal.getFullYear() === y &&
+        dateVal.getMonth() === m - 1 &&
+        dateVal.getDate() === d
+      ) {
+        return dateVal;
+      }
+      return null;
+    }
+  }
+
+  // Fallback to Date.parse
+  const parsed = Date.parse(cleaned);
+  if (!isNaN(parsed)) return new Date(parsed);
+  return null;
+};
+
 // @desc    Upload document, send to Python AI, and update KYC status
 // @route   POST /api/users/kyc/verify
 const verifyDocument = async (req, res) => {
@@ -253,14 +308,28 @@ const verifyDocument = async (req, res) => {
 
     if (doc_type === 'car_license' && !vehicleId) {
       cleanupInputFile();
-      return res.status(400).json({ message: 'vehicleId is required for car license verification.' });
+      return res.status(400).json({ message: 'vehicleId is required to attach a car license to a vehicle.' });
+    }
+
+    // Feature 5 Retry Limit Check (3 attempts per doc_type per day, 24h lockout)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const attemptCount = await KycAttempt.countDocuments({
+      userId: req.user._id,
+      doc_type,
+      createdAt: { $gte: twentyFourHoursAgo },
+    });
+
+    if (attemptCount >= 3) {
+      cleanupInputFile();
+      return res.status(429).json({
+        message: 'Too many verification attempts. Please try again after 24 hours.',
+      });
     }
 
     // 2. Prepare payload for Python OCR.
     const formData = new FormData();
     formData.append('file', fs.createReadStream(workingPath));
     formData.append('doc_type', doc_type);
-    formData.append('run_fraud_check', 'true');
 
     // 3. Call Python OCR first. Gemini is server-side fallback only.
     let ocrData;
@@ -319,15 +388,188 @@ const verifyDocument = async (req, res) => {
         ? detected_doc_type
         : doc_type;
 
+    if (effectiveDocType === 'car_license' && !vehicleId) {
+      cleanupInputFile();
+      return res.status(400).json({ message: 'vehicleId is required to attach a car license to a vehicle.' });
+    }
+
     // 4a. Log document type classification
     if (detected_doc_type && detected_doc_type !== doc_type && detected_doc_type !== 'unknown') {
       console.log(`Document type mismatch: user claimed '${doc_type}' but AI detected '${detected_doc_type}'`);
       console.log(`Processing using detected type '${effectiveDocType}'.`);
     }
 
+    // Feature 7: Expected fields and confidence score calculation
+    const expectedFieldsByDocType = {
+      national_id: ['full_name_ar', 'national_id_number', 'date_of_birth', 'gender', 'address'],
+      passport: ['full_name_en', 'document_number', 'nationality', 'date_of_birth', 'gender', 'expiry_date'],
+      driver_license: ['full_name_ar', 'license_number', 'license_type', 'date_of_birth', 'expiry_date'],
+      car_license: ['plate_number', 'chassis_number', 'engine_number', 'vehicle_make', 'vehicle_model', 'license_expiry'],
+    };
+
+    const expectedFields = expectedFieldsByDocType[effectiveDocType] || [];
+    let filledCount = 0;
+    expectedFields.forEach(field => {
+      if (fields && fields[field] !== undefined && fields[field] !== null && String(fields[field]).trim() !== '' && String(fields[field]).trim().toLowerCase() !== 'null') {
+        filledCount++;
+      }
+    });
+    const confidence_score = expectedFields.length > 0 ? Math.round((filledCount / expectedFields.length) * 100) : 100;
+    console.log(`Calculated confidence score: ${confidence_score}%`);
+
+    // Feature 1: Explicit Document Expiry Validation
+    if (effectiveDocType !== 'national_id') {
+      const expiryStr = (effectiveDocType === 'car_license') ? fields.license_expiry : fields.expiry_date;
+      if (expiryStr) {
+        const expiryDate = parseDateFlexible(expiryStr);
+        if (expiryDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // only compare date parts
+          if (expiryDate < today) {
+            validation.is_valid = false;
+            if (!validation.errors) validation.errors = [];
+            if (!validation.errors.includes('Document has expired')) {
+              validation.errors.push('Document has expired');
+            }
+            fraud_report.risk_level = 'HIGH_RISK';
+            if (!fraud_report.flags) fraud_report.flags = [];
+            if (!fraud_report.flags.includes('EXPIRED_DOCUMENT')) {
+              fraud_report.flags.push('EXPIRED_DOCUMENT');
+            }
+            fraud_report.recommendation = 'Document has expired';
+          }
+        }
+      }
+    }
+
+    // 4c. Gemini NID Validation
+    if (ocr_provider === 'gemini' && effectiveDocType === 'national_id') {
+      const nidValidation = validateEgyptianNID(fields.national_id_number, fields.date_of_birth);
+      if (!nidValidation.isValid) {
+        validation.is_valid = false;
+        validation.errors = [...new Set([...(validation.errors || []), ...nidValidation.errors])];
+        fraud_report.risk_level = 'HIGH_RISK';
+        fraud_report.recommendation = nidValidation.errors.join(', ');
+      }
+    }
+
+    // Feature 3: Duplicate ID Detection
+    let isDuplicate = false;
+    if (effectiveDocType === 'national_id' || effectiveDocType === 'passport') {
+      const extractedNumber = fields.national_id_number || fields.document_number;
+      if (extractedNumber) {
+        const normalizedNumber = normalizeIdentifier(extractedNumber);
+        fields.national_id_number = effectiveDocType === 'national_id' ? normalizedNumber : fields.national_id_number;
+        fields.document_number = normalizedNumber;
+        const numberRegex = flexibleIdentifierRegex(normalizedNumber);
+        const duplicateUser = await User.findOne({
+          _id: { $ne: req.user._id },
+          $or: [
+            { 'identity_document.document_number': normalizedNumber },
+            ...(numberRegex ? [{ 'identity_document.document_number': numberRegex }] : []),
+          ],
+        });
+        if (duplicateUser) isDuplicate = true;
+      }
+    } else if (effectiveDocType === 'driver_license') {
+      const extractedNumber = fields.license_number;
+      if (extractedNumber) {
+        const normalizedNumber = normalizeIdentifier(extractedNumber);
+        fields.license_number = normalizedNumber;
+        const numberRegex = flexibleIdentifierRegex(normalizedNumber);
+        const duplicateUser = await User.findOne({
+          _id: { $ne: req.user._id },
+          $or: [
+            { 'driving_license.license_number': normalizedNumber },
+            ...(numberRegex ? [{ 'driving_license.license_number': numberRegex }] : []),
+          ],
+        });
+        if (duplicateUser) isDuplicate = true;
+      }
+    } else if (effectiveDocType === 'car_license') {
+      const extractedPlate = fields.plate_number;
+      if (extractedPlate) {
+        const normalizedPlate = normalizeIdentifier(extractedPlate);
+        fields.plate_number = normalizedPlate;
+        const plateRegex = flexibleIdentifierRegex(normalizedPlate);
+        const duplicateVehicle = await Vehicle.findOne({
+          owner: { $ne: req.user._id },
+          $or: [
+            { 'car_license.plate_number': normalizedPlate },
+            ...(plateRegex ? [{ 'car_license.plate_number': plateRegex }] : []),
+          ],
+        });
+        if (duplicateVehicle) isDuplicate = true;
+      }
+    }
+
+    if (isDuplicate) {
+      cleanupInputFile();
+
+      // Feature 5 Retry Limit log record
+      await KycAttempt.create({
+        userId: req.user._id,
+        doc_type: doc_type,
+        result: 'rejected',
+      });
+
+      // Feature 8 Audit log with SHA-256 privacy hash and proxies IP support
+      const docNumber = fields.national_id_number || fields.document_number || fields.license_number || fields.plate_number || '';
+      const document_number_hash = docNumber ? crypto.createHash('sha256').update(String(docNumber).trim()).digest('hex') : null;
+      const xForwardedFor = req.headers['x-forwarded-for'];
+      const ip_address = xForwardedFor ? `${xForwardedFor.split(',')[0].trim()} (${req.ip})` : (req.ip || '');
+
+      await KycAuditLog.create({
+        userId: req.user._id,
+        doc_type: effectiveDocType,
+        provider: ocr_provider || 'python_ocr',
+        confidence_score,
+        result: 'rejected',
+        risk_level: 'HIGH_RISK',
+        fraud_flags: ['DUPLICATE_DOCUMENT'],
+        validation_errors: ['This ID is already registered to another account'],
+        ip_address,
+        user_agent: req.headers['user-agent'] || '',
+        document_number_hash,
+        quality_score: ocrData.quality_score || null,
+      });
+
+      return res.status(400).json({
+        message: 'This ID is already registered to another account',
+        errors: ['Duplicate document number detected.']
+      });
+    }
+
     // 4b. Handle extraction failure that is not eligible for admin review.
     if (!success) {
       cleanupInputFile();
+
+      // Feature 5 Retry Limit log record
+      await KycAttempt.create({
+        userId: req.user._id,
+        doc_type: doc_type,
+        result: 'error',
+      });
+
+      // Feature 8 Audit log
+      const xForwardedFor = req.headers['x-forwarded-for'];
+      const ip_address = xForwardedFor ? `${xForwardedFor.split(',')[0].trim()} (${req.ip})` : (req.ip || '');
+
+      await KycAuditLog.create({
+        userId: req.user._id,
+        doc_type: effectiveDocType,
+        provider: ocr_provider || 'python_ocr',
+        confidence_score: 0,
+        result: 'error',
+        risk_level: 'HIGH_RISK',
+        fraud_flags: ['EXTRACTION_FAILED'],
+        validation_errors: ['AI could not read the document.'],
+        ip_address,
+        user_agent: req.headers['user-agent'] || '',
+        document_number_hash: null,
+        quality_score: ocrData.quality_score || null,
+      });
+
       return res.status(400).json({ message: 'AI could not read the document. Please use a clearer photo.' });
     }
 
@@ -339,10 +581,15 @@ const verifyDocument = async (req, res) => {
       newKycStatus = 'verified';
     }
 
+    // Feature 7: Route low confidence to manual_review
+    if (newKycStatus !== 'rejected' && confidence_score < 80 && fraud_report.risk_level !== 'HIGH_RISK') {
+      newKycStatus = 'manual_review';
+    }
+
     // 6. Preserve image only when a human needs to review it.
-    if (newKycStatus === 'pending') {
+    if (newKycStatus === 'pending' || newKycStatus === 'manual_review') {
       ocrData.image_url = documentImageUrl;
-      console.log('Document preserved for Admin review.');
+      console.log(`Document preserved for Admin ${newKycStatus} review.`);
       if (tempPath && fs.existsSync(tempPath)) {
         try {
           fs.unlinkSync(tempPath);
@@ -356,30 +603,55 @@ const verifyDocument = async (req, res) => {
 
     // 7. Save OCR data to MongoDB.
     if (effectiveDocType === 'car_license') {
-      if (!vehicleId) {
-        cleanupInputFile();
-        return res.status(400).json({ message: 'vehicleId is required when detected document type is car_license.' });
+      if (vehicleId) {
+        const vehicle = await Vehicle.findById(vehicleId);
+        if (!vehicle) return res.status(404).json({ message: 'Vehicle not found.' });
+        if (vehicle.owner.toString() !== req.user._id.toString()) return res.status(401).json({ message: 'Unauthorized' });
+
+        vehicle.car_license = {
+          plate_number: fields.plate_number || null,
+          chassis_number: fields.chassis_number || null,
+          document_url: documentImageUrl,
+          extracted_data: ocrData,
+          verified_at: newKycStatus === 'verified' ? Date.now() : null,
+        };
+        vehicle.kyc_status = newKycStatus;
+        await vehicle.save();
+
+        if (newKycStatus === 'verified') {
+          await createNotification(req.user._id, 'Your vehicle license has been approved.', 'kyc_approved');
+        } else if (newKycStatus === 'rejected') {
+          await createNotification(req.user._id, 'Your vehicle license has been rejected.', 'kyc_rejected');
+        }
       }
 
-      const vehicle = await Vehicle.findById(vehicleId);
-      if (!vehicle) return res.status(404).json({ message: 'Vehicle not found.' });
-      if (vehicle.owner.toString() !== req.user._id.toString()) return res.status(401).json({ message: 'Unauthorized' });
+      // Feature 5 Retry Limit Log
+      await KycAttempt.create({
+        userId: req.user._id,
+        doc_type: doc_type,
+        result: newKycStatus,
+      });
 
-      vehicle.car_license = {
-        plate_number: fields.plate_number || null,
-        chassis_number: fields.chassis_number || null,
-        document_url: documentImageUrl,
-        extracted_data: ocrData,
-        verified_at: newKycStatus === 'verified' ? Date.now() : null,
-      };
-      vehicle.kyc_status = newKycStatus;
-      await vehicle.save();
+      // Feature 8 Audit log
+      const docNumber = fields.plate_number || fields.chassis_number || '';
+      const document_number_hash = docNumber ? crypto.createHash('sha256').update(String(docNumber).trim()).digest('hex') : null;
+      const xForwardedFor = req.headers['x-forwarded-for'];
+      const ip_address = xForwardedFor ? `${xForwardedFor.split(',')[0].trim()} (${req.ip})` : (req.ip || '');
 
-      if (newKycStatus === 'verified') {
-        await createNotification(req.user._id, 'Your vehicle license has been approved.', 'kyc_approved');
-      } else if (newKycStatus === 'rejected') {
-        await createNotification(req.user._id, 'Your vehicle license has been rejected.', 'kyc_rejected');
-      }
+      await KycAuditLog.create({
+        userId: req.user._id,
+        doc_type: effectiveDocType,
+        provider: ocr_provider || 'python_ocr',
+        confidence_score,
+        result: newKycStatus,
+        risk_level: fraud_report.risk_level || 'CLEAN',
+        fraud_flags: fraud_report.flags || [],
+        validation_errors: validation?.errors || [],
+        ip_address,
+        user_agent: req.headers['user-agent'] || '',
+        document_number_hash,
+        quality_score: ocrData.quality_score || null,
+      });
 
       return res.status(200).json({ message: 'Vehicle license processed', status: newKycStatus, data: fields });
     }
@@ -404,7 +676,6 @@ const verifyDocument = async (req, res) => {
         is_verified: newKycStatus === 'verified',
         verified_at: newKycStatus === 'verified' ? Date.now() : null,
       };
-      user.kyc_status = newKycStatus;
     }
 
     await user.save();
@@ -415,11 +686,40 @@ const verifyDocument = async (req, res) => {
       await createNotification(req.user._id, 'Your identity verification has been rejected.', 'kyc_rejected');
     }
 
+    // Feature 5 Retry Limit Log
+    await KycAttempt.create({
+      userId: req.user._id,
+      doc_type: doc_type,
+      result: newKycStatus,
+    });
+
+    // Feature 8 Audit log
+    const docNumber = fields.national_id_number || fields.document_number || fields.license_number || '';
+    const document_number_hash = docNumber ? crypto.createHash('sha256').update(String(docNumber).trim()).digest('hex') : null;
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    const ip_address = xForwardedFor ? `${xForwardedFor.split(',')[0].trim()} (${req.ip})` : (req.ip || '');
+
+    await KycAuditLog.create({
+      userId: req.user._id,
+      doc_type: effectiveDocType,
+      provider: ocr_provider || 'python_ocr',
+      confidence_score,
+      result: newKycStatus,
+      risk_level: fraud_report.risk_level || 'CLEAN',
+      fraud_flags: fraud_report.flags || [],
+      validation_errors: validation?.errors || [],
+      ip_address,
+      user_agent: req.headers['user-agent'] || '',
+      document_number_hash,
+      quality_score: ocrData.quality_score || null,
+    });
+
     // If the AI rejected it immediately for fraud, send a 400.
     if (newKycStatus === 'rejected') {
       return res.status(400).json({
         message: 'Document rejected due to fraud risk or invalid document type.',
         reason: fraud_report.recommendation || 'Invalid document provided.',
+        errors: validation?.errors || [],
       });
     }
 

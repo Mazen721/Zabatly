@@ -11,15 +11,15 @@ const { uploadPaymentProof } = require('../middleware/uploadMiddleware');
 router.get('/availability', checkVehicleAvailability);
 
 // Route to create a new booking
-router.post('/', protect, uploadPaymentProof, createBooking);
+router.post('/', protect, uploadPaymentProof, requireVerifiedKyc, createBooking);
 
 // Route to get all bookings for the logged-in user (Renter, Owner, or Driver)
 router.get('/', protect, getMyBookings);
 
 // ✅ NEW: This MUST go before the '/:id' route so Express doesn't get confused
-router.put('/finish/:id', protect, finishRide);
+router.put('/finish/:id', protect, requireVerifiedKyc, finishRide);
 
 // Route to update booking status (Accept/Decline)
-router.put('/:id', protect, updateBookingStatus);
+router.put('/:id', protect, requireVerifiedKyc, updateBookingStatus);
 
 module.exports = router;

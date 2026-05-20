@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Vehicle = require('../models/vehicle');
 const { protect } = require('../middleware/authMiddleware');
+const { requireVerifiedKyc } = require('../middleware/kycMiddleware');
 const { uploadVehicleImages } = require('../middleware/uploadMiddleware');
 const { createVehicle, getVehicles, getVehicleById } = require('../controllers/vehicleController');
 
@@ -12,10 +13,10 @@ router.get('/', getVehicles);
 router.get('/:id', getVehicleById);
 
 // @desc    Create a new vehicle (Add Vehicle Page)
-router.post('/', protect, uploadVehicleImages, createVehicle);
+router.post('/', protect, requireVerifiedKyc, uploadVehicleImages, createVehicle);
 
 // @desc    Delete a vehicle
-router.delete('/:id', protect, async (req, res) => {
+router.delete('/:id', protect, requireVerifiedKyc, async (req, res) => {
   try {
     const vehicle = await Vehicle.findById(req.params.id);
     if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });

@@ -188,7 +188,7 @@ function RadioGroup({ options, value, onChange }) {
   );
 }
 
-function CitySelect({ listed, others, value, onChange }) {
+function CitySelect({ listed, value, onChange }) {
   return (
     <select
       value={value}
@@ -196,24 +196,11 @@ function CitySelect({ listed, others, value, onChange }) {
       className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors"
     >
       <option value="all">Any city</option>
-      {listed.length > 0 && (
-        <optgroup label="Cities with listings">
-          {listed.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </optgroup>
-      )}
-      {others.length > 0 && (
-        <optgroup label="All cities">
-          {others.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </optgroup>
-      )}
+      {listed.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
     </select>
   );
 }
@@ -349,7 +336,6 @@ export default function Home() {
       <FilterSection title="City">
         <CitySelect
           listed={cityOptions.listed}
-          others={cityOptions.others}
           value={locationFilter}
           onChange={setLocationFilter}
         />

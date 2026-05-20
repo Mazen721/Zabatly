@@ -179,9 +179,16 @@ def preprocess_image(file_bytes: bytes) -> dict:
     corrected = perspective_correction(resized)
 
     # 4. Grayscale for quality assessment
+    # Grayscale conversion and mean intensity (brightness)
     gray = convert_to_grayscale(corrected)
     quality_score = compute_image_quality_score(gray)
+    brightness_score = float(np.mean(gray))
+    min_dimension = min(h, w)
+    too_small = min_dimension < 300
+
     logger.info(f"📊 Image quality score (Laplacian variance): {quality_score:.1f}")
+    logger.info(f"💡 Image brightness score (mean intensity): {brightness_score:.1f}")
+    logger.info(f"📐 Image min dimension: {min_dimension}px (too_small={too_small})")
 
     # 5. Enhancement pipeline
     enhanced_gray = apply_clahe(gray)
@@ -204,5 +211,8 @@ def preprocess_image(file_bytes: bytes) -> dict:
         'enhanced_b64': enhanced_b64,
         'original_b64': original_b64,
         'quality_score': quality_score,
+        'brightness_score': brightness_score,
+        'min_dimension': min_dimension,
+        'too_small': too_small,
         'original_dimensions': (h, w),
     }

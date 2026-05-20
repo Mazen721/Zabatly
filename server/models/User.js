@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
   // ==========================================
   kyc_status: { 
     type: String, 
-    enum: ['unsubmitted', 'pending', 'verified', 'rejected'], 
+    enum: ['unsubmitted', 'pending', 'manual_review', 'verified', 'rejected'], 
     default: 'unsubmitted' 
   },
   
@@ -33,7 +33,7 @@ const userSchema = new mongoose.Schema({
     extracted_data: { type: mongoose.Schema.Types.Mixed, default: {} },
     status: {
       type: String,
-      enum: ['unsubmitted', 'pending', 'verified', 'rejected'],
+      enum: ['unsubmitted', 'pending', 'manual_review', 'verified', 'rejected'],
       default: 'unsubmitted'
     },
     is_verified: { type: Boolean, default: false },

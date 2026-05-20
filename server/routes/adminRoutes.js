@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Vehicle = require('../models/vehicle');
 const Booking = require('../models/booking');
 const Review = require('../models/Review');
+const KycAuditLog = require('../models/KycAuditLog');
 const { protect } = require('../middleware/authMiddleware');
 const { attachPaymentsToBookings } = require('../controllers/paymentController');
 
@@ -18,13 +19,32 @@ const adminGuard = (req, res, next) => {
 // @route   GET /api/admin/pending
 router.get('/pending', protect, adminGuard, async (req, res) => {
   try {
-    // Added .lean() to guarantee the admin can see the raw data too
-    const identity = await User.find({ kyc_status: 'pending' }).select('name email identity_document').lean();
+    const identityPending = await User.find({
+      kyc_status: 'pending',
+      'identity_document.doc_type': { $in: ['national_id', 'passport'] },
+    }).select('name email identity_document').lean();
+    const identityManual = await User.find({
+      kyc_status: 'manual_review',
+      'identity_document.doc_type': { $in: ['national_id', 'passport'] },
+    }).select('name email identity_document').lean();
+    const identity = [
+      ...identityManual.map(item => ({ ...item, review_priority: 'high' })),
+      ...identityPending.map(item => ({ ...item, review_priority: 'medium' }))
+    ];
     
-    // ✅ FIX 4: Corrected query path for driving license status
-    const licenses = await User.find({ 'driving_license.status': 'pending' }).select('name email driving_license').lean();
+    const licensesPending = await User.find({ 'driving_license.status': 'pending' }).select('name email driving_license').lean();
+    const licensesManual = await User.find({ 'driving_license.status': 'manual_review' }).select('name email driving_license').lean();
+    const licenses = [
+      ...licensesManual.map(item => ({ ...item, review_priority: 'high' })),
+      ...licensesPending.map(item => ({ ...item, review_priority: 'medium' }))
+    ];
     
-    const vehicles = await Vehicle.find({ kyc_status: 'pending' }).populate('owner', 'name email').select('make model year car_license owner').lean();
+    const vehiclesPending = await Vehicle.find({ kyc_status: 'pending' }).populate('owner', 'name email').select('make model year car_license owner').lean();
+    const vehiclesManual = await Vehicle.find({ kyc_status: 'manual_review' }).populate('owner', 'name email').select('make model year car_license owner').lean();
+    const vehicles = [
+      ...vehiclesManual.map(item => ({ ...item, review_priority: 'high' })),
+      ...vehiclesPending.map(item => ({ ...item, review_priority: 'medium' }))
+    ];
     
     res.json({ identity, licenses, vehicles });
   } catch (error) {
@@ -135,6 +155,86 @@ router.put('/review', protect, adminGuard, async (req, res) => {
 
     res.json({ message: `Document successfully ${status}` });
   } catch (error) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+});
+
+// @route   GET /api/admin/kyc-logs
+// @desc    Get paginated KYC audit logs with filters
+router.get('/kyc-logs', protect, adminGuard, async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      userId,
+      result,
+      provider,
+      doc_type,
+      risk_level,
+      minConfidence,
+      maxConfidence,
+      startDate,
+      endDate,
+    } = req.query;
+    const query = {};
+
+    if (userId) {
+      query.userId = userId;
+    }
+    if (result) {
+      query.result = result;
+    }
+    if (provider) {
+      query.provider = provider;
+    }
+    if (doc_type) {
+      query.doc_type = doc_type;
+    }
+    if (risk_level) {
+      query.risk_level = risk_level;
+    }
+    if (minConfidence || maxConfidence) {
+      query.confidence_score = {};
+      if (minConfidence) {
+        const min = Number(minConfidence);
+        if (!Number.isNaN(min)) query.confidence_score.$gte = min;
+      }
+      if (maxConfidence) {
+        const max = Number(maxConfidence);
+        if (!Number.isNaN(max)) query.confidence_score.$lte = max;
+      }
+      if (Object.keys(query.confidence_score).length === 0) delete query.confidence_score;
+    }
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const total = await KycAuditLog.countDocuments(query);
+    const logs = await KycAuditLog.find(query)
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    res.json({
+      total,
+      page: pageNum,
+      pages: Math.ceil(total / limitNum),
+      logs,
+    });
+  } catch (error) {
+    console.error('Error fetching KYC logs:', error);
     res.status(500).json({ message: 'Server Error' });
   }
 });

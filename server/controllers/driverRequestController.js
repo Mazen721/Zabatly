@@ -100,6 +100,13 @@ const updateRequestStatus = async (req, res) => {
       return res.status(400).json({ message: 'Only pending requests can be accepted or rejected.' });
     }
 
+    if (status === 'accepted') {
+      const acceptingDriver = await User.findById(req.user._id).select('driving_license');
+      if (!acceptingDriver?.driving_license?.is_verified) {
+        return res.status(400).json({ message: 'You must have a verified driving license to accept this request.' });
+      }
+    }
+
     request.status = status;
     await request.save();
     await request.populate(populateFields);

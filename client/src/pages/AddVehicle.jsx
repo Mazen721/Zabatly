@@ -106,7 +106,6 @@ export default function AddVehicle() {
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [primaryIndex, setPrimaryIndex] = useState(0);
-  const [licenseFile, setLicenseFile] = useState(null);
   const [geocoding, setGeocoding] = useState(false);
 
   const handleChange = (e) => {
@@ -186,10 +185,6 @@ export default function AddVehicle() {
       setError('Upload at least one vehicle photo.');
       return;
     }
-    if (!licenseFile) {
-      setError('Upload the official car license for verification.');
-      return;
-    }
     if (!formData.governorate || !formData.city) {
       setError('Select a governorate and city for pickup.');
       return;
@@ -225,26 +220,8 @@ export default function AddVehicle() {
         config
       );
 
-      setLoadingState('Verifying license...');
-
-      const kycForm = new FormData();
-      kycForm.append('file', licenseFile);
-      kycForm.append('doc_type', 'car_license');
-      kycForm.append('run_fraud_check', 'true');
-      kycForm.append('vehicleId', newVehicle._id);
-
-      try {
-        await axios.post(`${API}/api/users/kyc/verify`, kycForm, config);
-        setSuccess('Vehicle listed and license verified.');
-        setTimeout(() => navigate('/dashboard'), 1500);
-      } catch (kycErr) {
-        setSuccess(
-          `Vehicle created. License verification failed: ${
-            kycErr.response?.data?.message || 'upload a clearer image later.'
-          }`
-        );
-        setTimeout(() => navigate('/dashboard'), 2500);
-      }
+      setSuccess('Vehicle listed successfully.');
+      setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       setError(
         err.response?.data?.message || 'Could not add vehicle. Try again.'
@@ -696,42 +673,6 @@ export default function AddVehicle() {
                 ))}
               </div>
             )}
-          </section>
-
-          {/* --- License Verification --- */}
-          <section>
-            <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-1">
-              Car License
-            </h2>
-            <p className="text-[0.8125rem] text-sand-500 mb-4">
-              Upload the official car license for AI verification. Required
-              before renters can book.
-            </p>
-
-            <label className="flex items-center justify-center gap-2 w-full border border-dashed border-signal-300 bg-signal-50/30 rounded-soft py-6 cursor-pointer hover:bg-signal-50 transition-colors">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-signal-600"
-              >
-                <path d="M8 1.5l5.5 2v4.5c0 3.5-2.5 5.5-5.5 7-3-1.5-5.5-3.5-5.5-7V3.5L8 1.5z" />
-              </svg>
-              <span className="text-[0.8125rem] font-medium text-signal-700">
-                {licenseFile ? licenseFile.name : 'Choose license image'}
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setLicenseFile(e.target.files[0])}
-                className="hidden"
-              />
-            </label>
           </section>
 
           {/* --- Submit --- */}

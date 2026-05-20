@@ -5,7 +5,7 @@ FastAPI application that provides document OCR, classification,
 field extraction, validation, and fraud detection for Egyptian official documents.
 
 Endpoint: POST /api/ocr/scan
-  - Accepts multipart form: file (image), doc_type (string), run_fraud_check (bool)
+  - Accepts multipart form: file (image), doc_type (string)
   - Returns JSON compatible with the Node.js kycController
 
 Pipeline:
@@ -89,7 +89,6 @@ async def api_health():
 async def scan_document(
     file: UploadFile = File(..., description="Document image file"),
     doc_type: str = Form("auto", description="Document type: national_id, passport, driver_license, car_license, or auto"),
-    run_fraud_check: str = Form("true", description="Whether to run fraud detection"),
 ):
     """
     Main OCR endpoint — processes a document image through the full pipeline.
@@ -142,7 +141,55 @@ async def scan_document(
         enhanced_b64 = prep_result["enhanced_b64"]
         original_b64 = prep_result["original_b64"]
         quality_score = prep_result["quality_score"]
-        logger.info(f"📊 Quality score: {quality_score:.1f}")
+        brightness_score = prep_result["brightness_score"]
+        min_dimension = prep_result["min_dimension"]
+        logger.info(f"📊 Quality score: {quality_score:.1f}, Brightness: {brightness_score:.1f}, Min dimension: {min_dimension}px")
+
+        # Quality Gate Checks (Feature 2)
+        if min_dimension < 300 or quality_score < 8:
+            logger.warning(f"❌ Image rejected: too small/no content (min_dim={min_dimension}, quality={quality_score:.1f})")
+            return OCRResponse(
+                success=False,
+                detected_doc_type="unknown",
+                fields={},
+                fraud_report=FraudReport(
+                    risk_level="HIGH_RISK",
+                    flags=["IMAGE_TOO_SMALL"],
+                    recommendation="Image too small. Please upload a higher resolution photo.",
+                ),
+                validation=ValidationResult(is_valid=False, errors=["Image too small"]),
+                quality_score=quality_score,
+            ).model_dump()
+
+        if quality_score < 15:
+            logger.warning(f"❌ Image rejected: too blurry (quality={quality_score:.1f})")
+            return OCRResponse(
+                success=False,
+                detected_doc_type="unknown",
+                fields={},
+                fraud_report=FraudReport(
+                    risk_level="HIGH_RISK",
+                    flags=["IMAGE_BLURRY"],
+                    recommendation="Please upload a clearer image.",
+                ),
+                validation=ValidationResult(is_valid=False, errors=["Please upload a clearer image"]),
+                quality_score=quality_score,
+            ).model_dump()
+
+        if brightness_score < 40 or brightness_score > 240:
+            logger.warning(f"❌ Image rejected: bad lighting (brightness={brightness_score:.1f})")
+            return OCRResponse(
+                success=False,
+                detected_doc_type="unknown",
+                fields={},
+                fraud_report=FraudReport(
+                    risk_level="HIGH_RISK",
+                    flags=["BAD_LIGHTING"],
+                    recommendation="Bad lighting, try again.",
+                ),
+                validation=ValidationResult(is_valid=False, errors=["Bad lighting, try again"]),
+                quality_score=quality_score,
+            ).model_dump()
     except ValueError as e:
         return OCRResponse(
             success=False,
@@ -266,7 +313,8 @@ async def scan_document(
     # ============================================================
     # 6. Fraud Detection
     # ============================================================
-    should_check_fraud = run_fraud_check.lower() in ("true", "1", "yes")
+    run_fraud_check = True
+    should_check_fraud = True
     
     if should_check_fraud:
         logger.info("🔒 Step 5: Running fraud detection...")
@@ -305,6 +353,7 @@ async def scan_document(
         fields=fields,
         fraud_report=FraudReport(**fraud_result),
         validation=ValidationResult(**validation_result),
+        quality_score=quality_score,
     )
 
     logger.info(

@@ -338,6 +338,14 @@ const updateBookingStatus = async (req, res) => {
         return res.status(401).json({ message: 'Only the assigned driver can accept this ride.' });
       }
 
+      // Feature 4: Verify driver has a verified driving license.
+      if ((booking.withDriver && booking.vehicle) || (!booking.vehicle && booking.driver)) {
+        const acceptingDriver = await User.findById(req.user._id);
+        if (!acceptingDriver || !acceptingDriver.driving_license || acceptingDriver.driving_license.is_verified !== true) {
+          return res.status(400).json({ message: 'You must have a verified driving license to accept this trip.' });
+        }
+      }
+
       booking.status = 'active';
       if (booking.vehicle) {
         await Vehicle.findByIdAndUpdate(booking.vehicle, { isAvailable: false });

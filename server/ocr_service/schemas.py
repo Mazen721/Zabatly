@@ -100,3 +100,4 @@ class OCRResponse(BaseModel):
     fields: dict = Field(default_factory=dict, description="Extracted document fields")
     fraud_report: FraudReport = Field(default_factory=FraudReport)
     validation: ValidationResult = Field(default_factory=ValidationResult)
+    quality_score: Optional[float] = Field(None, description="Image quality score")

@@ -287,23 +287,16 @@ export function getVehicleExactAddress(vehicle) {
 }
 
 export function getFilterCityOptions(vehicles = []) {
-  const allNames = new Set(getAllCities().map((c) => c.name));
-  vehicles.forEach((v) => {
-    if (v.city) allNames.add(v.city);
-  });
-
   const listedSet = new Set();
   vehicles.forEach((v) => {
-    if (v.city) listedSet.add(v.city);
+    const city = String(v.city || '').trim();
+    if (city) listedSet.add(city);
   });
 
   const listed = Array.from(listedSet).sort((a, b) => a.localeCompare(b));
-  const others = Array.from(allNames)
-    .filter((name) => !listedSet.has(name))
-    .sort((a, b) => a.localeCompare(b));
 
   return {
     listed: listed.map((name) => ({ value: name, label: name })),
-    others: others.map((name) => ({ value: name, label: name })),
+    others: [],
   };
 }

@@ -48,7 +48,7 @@ const vehicleSchema = new mongoose.Schema({
   // ==========================================
   kyc_status: { 
     type: String, 
-    enum: ['unsubmitted', 'pending', 'verified', 'rejected'], 
+    enum: ['unsubmitted', 'pending', 'manual_review', 'verified', 'rejected'], 
     default: 'unsubmitted' 
   },
   car_license: {
