@@ -52,3 +52,6 @@ Desktop.ini
 coverage/
 .cache/
 .impeccable/live/
+
+# Mobile app
+mobile/

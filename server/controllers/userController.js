@@ -20,7 +20,9 @@ const updateProfile = async (req, res) => {
     user.gender = req.body.gender ?? user.gender;
     user.phone = req.body.phone ?? user.phone;
     user.city = req.body.city ?? user.city;
-    user.currentLocation = req.body.currentLocation ?? user.currentLocation;
+    user.currentLocation = Array.isArray(req.body.currentLocation)
+      ? req.body.currentLocation[0]
+      : req.body.currentLocation ?? user.currentLocation;
     user.nationality = req.body.nationality ?? user.nationality;
     user.preferredLanguage = req.body.preferredLanguage ?? user.preferredLanguage;
     user.emergencyContact = {
@@ -87,7 +89,8 @@ const updateProfile = async (req, res) => {
       token: req.headers.authorization.split(' ')[1],
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update profile' });
+    console.error('Update profile error:', error);
+    res.status(500).json({ message: 'Failed to update profile', error: error.message });
   }
 };
 

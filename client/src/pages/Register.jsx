@@ -118,14 +118,14 @@ export default function Register() {
         },
         ...(role === 'driver'
           ? {
-              currentLocation: driverDetails.currentLocation || accountDetails.city,
+              currentLocation: accountDetails.city,
               coveredAreas: listFromText(driverDetails.coveredAreas),
               availability: driverDetails.availability,
               drivingExperience: driverDetails.drivingExperience,
               vehicleTypes: listFromText(driverDetails.vehicleTypes),
               licenseInfo: driverDetails.licenseInfo,
               languagesSpoken: listFromText(driverDetails.languagesSpoken),
-              contactDetails: driverDetails.contactDetails,
+              contactDetails: accountDetails.phone,
             }
           : {}),
       });
@@ -336,34 +336,21 @@ export default function Register() {
                   Driver profile details
                 </legend>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="driver-current-location" className="block text-label text-sand-700 mb-1.5">Current Location</label>
-                    <input
-                      id="driver-current-location"
-                      type="text"
-                      placeholder="Alexandria"
-                      value={driverDetails.currentLocation}
-                      onChange={(e) => setDriverDetails((prev) => ({ ...prev, currentLocation: e.target.value }))}
-                      className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="driver-availability" className="block text-label text-sand-700 mb-1.5">Availability</label>
-                    <select
-                      id="driver-availability"
-                      value={driverDetails.availability}
-                      onChange={(e) => setDriverDetails((prev) => ({ ...prev, availability: e.target.value }))}
-                      className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
-                    >
-                      <option value="">Select availability</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Weekdays">Weekdays</option>
-                      <option value="Weekends">Weekends</option>
-                      <option value="Evenings">Evenings</option>
-                      <option value="Flexible">Flexible</option>
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="driver-availability" className="block text-label text-sand-700 mb-1.5">Availability</label>
+                  <select
+                    id="driver-availability"
+                    value={driverDetails.availability}
+                    onChange={(e) => setDriverDetails((prev) => ({ ...prev, availability: e.target.value }))}
+                    className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
+                  >
+                    <option value="">Select availability</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Weekdays">Weekdays</option>
+                    <option value="Weekends">Weekends</option>
+                    <option value="Evenings">Evenings</option>
+                    <option value="Flexible">Flexible</option>
+                  </select>
                 </div>
 
                 <div>
@@ -415,29 +402,16 @@ export default function Register() {
                   />
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="driver-languages" className="block text-label text-sand-700 mb-1.5">Languages Spoken</label>
-                    <input
-                      id="driver-languages"
-                      type="text"
-                      placeholder="Arabic, English"
-                      value={driverDetails.languagesSpoken}
-                      onChange={(e) => setDriverDetails((prev) => ({ ...prev, languagesSpoken: e.target.value }))}
-                      className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="driver-contact" className="block text-label text-sand-700 mb-1.5">Contact Details</label>
-                    <input
-                      id="driver-contact"
-                      type="text"
-                      placeholder="Phone or WhatsApp"
-                      value={driverDetails.contactDetails}
-                      onChange={(e) => setDriverDetails((prev) => ({ ...prev, contactDetails: e.target.value }))}
-                      className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
-                    />
-                  </div>
+                <div>
+                  <label htmlFor="driver-languages" className="block text-label text-sand-700 mb-1.5">Languages Spoken</label>
+                  <input
+                    id="driver-languages"
+                    type="text"
+                    placeholder="Arabic, English"
+                    value={driverDetails.languagesSpoken}
+                    onChange={(e) => setDriverDetails((prev) => ({ ...prev, languagesSpoken: e.target.value }))}
+                    className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
+                  />
                 </div>
               </fieldset>
             )}

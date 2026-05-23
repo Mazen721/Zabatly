@@ -143,16 +143,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
         </svg>
       ),
     },
-    {
-      id: 'payments',
-      label: 'Payments',
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" />
-          <path d="M1.5 7h13" />
-        </svg>
-      ),
-    },
+
     { id: 'div1', type: 'divider', label: '' },
     {
       id: 'browse',
@@ -352,15 +343,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                   <path d="M5 2.5 9.5 7 5 11.5" />
                 </svg>
               </Link>
-              <Link
-                to="/profile"
-                className="flex items-center justify-between bg-sand-100 text-sand-800 border border-sand-200 px-4 py-3 rounded-subtle hover:bg-sand-200/60 transition-colors duration-150"
-              >
-                <span className="text-[0.8125rem] font-medium">Payment Methods</span>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 2.5 9.5 7 5 11.5" />
-                </svg>
-              </Link>
+
 
               {/* Active booking card */}
               {activeBooking && (
@@ -516,60 +499,6 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
         </div>
       )}
 
-      {/* Payments */}
-      {section === 'payments' && (
-        <div>
-          <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Payments
-          </h1>
-          <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200 mb-6">
-            <MetricTile label="Total Spent" value={`${totalSpent.toLocaleString()} EGP`} />
-            <MetricTile label="Completed Payments" value={completedCount} />
-          </div>
-
-          <div className="bg-sand-50 border border-sand-200 rounded-soft overflow-hidden">
-            <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_100px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-              <span>Description</span>
-              <span>Date</span>
-              <span>Method</span>
-              <span className="text-right">Amount</span>
-            </div>
-
-            {bookings.filter((b) => b.status === 'completed').length === 0 ? (
-              <EmptyState message="No payment history yet." />
-            ) : (
-              <div className="divide-y divide-sand-100">
-                {bookings
-                  .filter((b) => b.status === 'completed')
-                  .map((b) => (
-                    <div
-                      key={b._id}
-                      className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_100px] gap-2 md:gap-4 items-center px-4 py-3"
-                    >
-                      <span className="text-[0.875rem] text-sand-800">
-                        {b.vehicle
-                          ? `${b.vehicle.make} ${b.vehicle.model} rental`
-                          : 'Driver service'}
-                      </span>
-                      <span className="text-[0.8125rem] text-sand-600">
-                        {b.endDate
-                          ? new Date(b.endDate).toLocaleDateString('en-GB', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })
-                          : '—'}
-                      </span>
-                      <span className="text-[0.875rem] font-semibold text-sand-900 md:text-right tabular-nums">
-                        {b.totalPrice?.toLocaleString() || '—'} EGP
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </DashboardShell>
   );
 }

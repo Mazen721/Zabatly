@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../components/dashboard/DashboardShell';
@@ -98,6 +98,106 @@ export default function Profile() {
   const [cropSource, setCropSource] = useState(null);
   const [cropFileName, setCropFileName] = useState('profile-picture.jpg');
   const [crop, setCrop] = useState({ x: 50, y: 50, zoom: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const initialCropRef = useRef({ x: 50, y: 50 });
+  const overflowRef = useRef({ w: 1, h: 1 });
+
+  const handleDragStart = (clientX, clientY, currentTarget) => {
+    setIsDragging(true);
+    dragStartRef.current = { x: clientX, y: clientY };
+    initialCropRef.current = { x: crop.x, y: crop.y };
+
+    const img = currentTarget.querySelector('img');
+    if (img) {
+      const rect = currentTarget.getBoundingClientRect();
+      const containerWidth = rect.width;
+      const containerHeight = rect.height;
+      const naturalWidth = img.naturalWidth || containerWidth;
+      const naturalHeight = img.naturalHeight || containerHeight;
+      const aspectRatio = naturalWidth / naturalHeight;
+      const containerAspectRatio = containerWidth / containerHeight;
+
+      let wOverflow = 0;
+      let hOverflow = 0;
+
+      if (aspectRatio > containerAspectRatio) {
+        const hScaled = containerHeight * crop.zoom;
+        const wScaled = hScaled * aspectRatio;
+        wOverflow = wScaled - containerWidth;
+        hOverflow = hScaled - containerHeight;
+      } else {
+        const wScaled = containerWidth * crop.zoom;
+        const hScaled = wScaled / aspectRatio;
+        wOverflow = wScaled - containerWidth;
+        hOverflow = hScaled - containerHeight;
+      }
+
+      overflowRef.current = {
+        w: Math.max(1, wOverflow),
+        h: Math.max(1, hOverflow),
+      };
+    }
+  };
+
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    handleDragStart(e.clientX, e.clientY, e.currentTarget);
+
+    const handleMouseMove = (moveEvent) => {
+      const deltaX = moveEvent.clientX - dragStartRef.current.x;
+      const deltaY = moveEvent.clientY - dragStartRef.current.y;
+
+      const deltaPercentX = (deltaX / overflowRef.current.w) * 100;
+      const deltaPercentY = (deltaY / overflowRef.current.h) * 100;
+
+      setCrop((prev) => ({
+        ...prev,
+        x: Math.max(0, Math.min(100, initialCropRef.current.x - deltaPercentX)),
+        y: Math.max(0, Math.min(100, initialCropRef.current.y - deltaPercentY)),
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const onTouchStart = (e) => {
+    if (!e.touches[0]) return;
+    const touch = e.touches[0];
+    handleDragStart(touch.clientX, touch.clientY, e.currentTarget);
+
+    const handleTouchMove = (moveEvent) => {
+      if (!moveEvent.touches[0]) return;
+      const deltaX = moveEvent.touches[0].clientX - dragStartRef.current.x;
+      const deltaY = moveEvent.touches[0].clientY - dragStartRef.current.y;
+
+      const deltaPercentX = (deltaX / overflowRef.current.w) * 100;
+      const deltaPercentY = (deltaY / overflowRef.current.h) * 100;
+
+      setCrop((prev) => ({
+        ...prev,
+        x: Math.max(0, Math.min(100, initialCropRef.current.x - deltaPercentX)),
+        y: Math.max(0, Math.min(100, initialCropRef.current.y - deltaPercentY)),
+      }));
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd);
+  };
+
   const [removeProfilePicture, setRemoveProfilePicture] = useState(false);
   const [saving, setSaving] = useState(false);
   const [driverDetails, setDriverDetails] = useState({
@@ -174,12 +274,17 @@ export default function Profile() {
     Object.entries(profileDetails).forEach(([key, value]) => {
       formData.append(key, value);
     });
+    // Synchronize currentLocation with city and contactDetails with phone
     formData.append('currentLocation', profileDetails.city);
+    formData.append('contactDetails', profileDetails.phone);
+
     if (file) formData.append('profilePhoto', file);
     if (removeProfilePicture) formData.append('removeProfilePicture', 'true');
     if (user.role === 'driver') {
       Object.entries(driverDetails).forEach(([key, value]) => {
-        formData.append(key, value);
+        if (key !== 'currentLocation' && key !== 'contactDetails') {
+          formData.append(key, value);
+        }
       });
     }
 
@@ -199,8 +304,8 @@ export default function Profile() {
       setFile(null);
       setRemoveProfilePicture(false);
       showToast('Profile updated.');
-    } catch {
-      showToast('Could not save profile. Try again.', 'error');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Could not save profile. Try again.', 'error');
     } finally {
       setSaving(false);
     }
@@ -444,7 +549,7 @@ export default function Profile() {
               <div>
                 <h2 className="text-[1rem] font-semibold text-sand-950">Crop Profile Picture</h2>
                 <p className="mt-1 text-[0.8125rem] text-sand-500">
-                  Move the focal point and zoom until the preview feels right.
+                  Drag the photo inside the circle and use the zoom slider.
                 </p>
               </div>
               <button
@@ -460,37 +565,49 @@ export default function Profile() {
             </div>
 
             <div className="flex flex-col items-center gap-5">
-              <div className="relative h-64 w-64 overflow-hidden rounded-full border border-sand-200 bg-sand-100">
+              <div
+                onMouseDown={onMouseDown}
+                onTouchStart={onTouchStart}
+                className="relative h-64 w-64 overflow-hidden rounded-full border border-sand-200 bg-sand-100 cursor-grab active:cursor-grabbing hover:scale-[1.01] transition-transform duration-200 select-none touch-none"
+              >
                 <img
                   src={cropSource}
                   alt="Profile crop preview"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover pointer-events-none"
                   style={{
                     objectPosition: `${crop.x}% ${crop.y}%`,
                     transform: `scale(${crop.zoom})`,
                     transformOrigin: `${crop.x}% ${crop.y}%`,
                   }}
                 />
+                {/* 3x3 Instagram-style Grid Overlay */}
+                <div className={`absolute inset-0 grid grid-cols-3 grid-rows-3 transition-opacity duration-300 pointer-events-none rounded-full overflow-hidden ${isDragging ? 'opacity-100' : 'opacity-0'}`}>
+                  <div className="border-r border-b border-white/30 border-dashed" />
+                  <div className="border-r border-b border-white/30 border-dashed" />
+                  <div className="border-b border-white/30 border-dashed" />
+                  <div className="border-r border-b border-white/30 border-dashed" />
+                  <div className="border-r border-b border-white/30 border-dashed" />
+                  <div className="border-b border-white/30 border-dashed" />
+                  <div className="border-r border-white/30 border-dashed" />
+                  <div className="border-r border-white/30 border-dashed" />
+                  <div className="" />
+                </div>
                 <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-primary-950/10" />
               </div>
 
+              <div className="flex items-center gap-1.5 text-[0.75rem] font-medium text-sand-500 select-none pointer-events-none">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-pulse text-primary-600">
+                  <polyline points="5 9 2 12 5 15" />
+                  <polyline points="9 5 12 2 15 5" />
+                  <polyline points="15 19 12 22 9 19" />
+                  <polyline points="19 9 22 12 19 15" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <line x1="12" y1="2" x2="12" y2="22" />
+                </svg>
+                <span>Drag photo inside circle to adjust</span>
+              </div>
+
               <div className="w-full space-y-3">
-                <CropSlider
-                  label="Horizontal"
-                  value={crop.x}
-                  min="0"
-                  max="100"
-                  step="1"
-                  onChange={(value) => setCrop((prev) => ({ ...prev, x: value }))}
-                />
-                <CropSlider
-                  label="Vertical"
-                  value={crop.y}
-                  min="0"
-                  max="100"
-                  step="1"
-                  onChange={(value) => setCrop((prev) => ({ ...prev, y: value }))}
-                />
                 <CropSlider
                   label="Zoom"
                   value={crop.zoom}
@@ -739,32 +856,23 @@ export default function Profile() {
 
             {user.role === 'driver' && (
               <div className="space-y-4 border-t border-sand-200 pt-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DriverInput
-                    id="profile-current-location"
-                    label="Current Location"
-                    value={driverDetails.currentLocation}
-                    placeholder="Alexandria"
-                    onChange={(value) => setDriverDetails((prev) => ({ ...prev, currentLocation: value }))}
-                  />
-                  <div>
-                    <label htmlFor="profile-availability" className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5">
-                      Availability
-                    </label>
-                    <select
-                      id="profile-availability"
-                      value={driverDetails.availability}
-                      onChange={(e) => setDriverDetails((prev) => ({ ...prev, availability: e.target.value }))}
-                      className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
-                    >
-                      <option value="">Select availability</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Weekdays">Weekdays</option>
-                      <option value="Weekends">Weekends</option>
-                      <option value="Evenings">Evenings</option>
-                      <option value="Flexible">Flexible</option>
-                    </select>
-                  </div>
+                <div>
+                  <label htmlFor="profile-availability" className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5">
+                    Availability
+                  </label>
+                  <select
+                    id="profile-availability"
+                    value={driverDetails.availability}
+                    onChange={(e) => setDriverDetails((prev) => ({ ...prev, availability: e.target.value }))}
+                    className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
+                  >
+                    <option value="">Select availability</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Weekdays">Weekdays</option>
+                    <option value="Weekends">Weekends</option>
+                    <option value="Evenings">Evenings</option>
+                    <option value="Flexible">Flexible</option>
+                  </select>
                 </div>
 
                 <DriverInput
@@ -800,22 +908,13 @@ export default function Profile() {
                   onChange={(value) => setDriverDetails((prev) => ({ ...prev, licenseInfo: value }))}
                 />
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <DriverInput
-                    id="profile-languages"
-                    label="Languages Spoken"
-                    value={driverDetails.languagesSpoken}
-                    placeholder="Arabic, English"
-                    onChange={(value) => setDriverDetails((prev) => ({ ...prev, languagesSpoken: value }))}
-                  />
-                  <DriverInput
-                    id="profile-contact-details"
-                    label="Contact Details"
-                    value={driverDetails.contactDetails}
-                    placeholder="Phone or WhatsApp"
-                    onChange={(value) => setDriverDetails((prev) => ({ ...prev, contactDetails: value }))}
-                  />
-                </div>
+                <DriverInput
+                  id="profile-languages"
+                  label="Languages Spoken"
+                  value={driverDetails.languagesSpoken}
+                  placeholder="Arabic, English"
+                  onChange={(value) => setDriverDetails((prev) => ({ ...prev, languagesSpoken: value }))}
+                />
               </div>
             )}
 
