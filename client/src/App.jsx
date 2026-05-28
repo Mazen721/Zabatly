@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AIAssistant from './pages/AIAssistant';
 import PaymentPage from './pages/PaymentPage';
 import BookingSuccess from './pages/BookingSuccess';
+import UserPublicProfile from './pages/UserPublicProfile';
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
 
@@ -147,6 +148,7 @@ function AppShell() {
           <Route path="/booking-success" element={<BookingSuccess />} />
 
           <Route path="/profile" element={<Profile />} />
+          <Route path="/user/:id" element={<UserPublicProfile />} />
 
           <Route path="*" element={
             <div className="text-center mt-32 p-10 bg-sand-50 max-w-lg mx-auto rounded-soft border border-sand-200">

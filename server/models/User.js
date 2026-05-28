@@ -77,7 +77,8 @@ const userSchema = new mongoose.Schema({
     relation: { type: String, default: '' },
   },
   rating: { type: Number, default: 0 },
-  numReviews: { type: Number, default: 0 }
+  numReviews: { type: Number, default: 0 },
+  savedVehicles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }]
 
 }, { timestamps: true });
 

@@ -4,6 +4,7 @@ import axios from 'axios';
 import DashboardShell from './DashboardShell';
 import PaymentProofLink from '../PaymentProofLink';
 import { API } from '../../config/api';
+import { getVehicleAreaLabel } from '../../data/egyptLocations';
 
 const getImg = (v) =>
   v?.images?.length > 0
@@ -14,8 +15,10 @@ const statusColors = {
   upcoming: 'bg-signal-50 text-signal-700 border border-signal-200',
   active: 'bg-green-50 text-green-700 border border-green-200',
   pending: 'bg-signal-50 text-signal-700 border border-signal-200',
+  confirmed: 'bg-primary-50 text-primary-700 border border-primary-200',
   completed: 'bg-primary-50 text-primary-700 border border-primary-200',
   cancelled: 'bg-sand-100 text-sand-600 border border-sand-200',
+  expired: 'bg-sand-100 text-sand-600 border border-sand-200',
 };
 
 const StatusBadge = ({ status }) => (
@@ -34,12 +37,45 @@ const paymentLabels = {
   instapay: 'InstaPay',
 };
 
-const displayStatus = (booking) => {
-  if (booking.status === 'completed') return 'completed';
+const getRentalEndDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (
+    date.getHours() === 0 &&
+    date.getMinutes() === 0 &&
+    date.getSeconds() === 0 &&
+    date.getMilliseconds() === 0
+  ) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date;
+};
+
+const isWithinBookingDates = (booking, date) => {
+  const start = booking.startDate ? new Date(booking.startDate) : null;
+  const end = getRentalEndDate(booking.endDate);
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return start <= date && end >= date;
+};
+
+const isPastBooking = (booking, date) => {
+  const end = getRentalEndDate(booking.endDate);
+  return Boolean(end && end < date);
+};
+
+const displayStatus = (booking, date = new Date()) => {
+  if (['completed', 'cancelled', 'expired'].includes(booking.status)) return booking.status;
   if (booking.status === 'active') return 'active';
-  if (booking.status === 'cancelled') return 'cancelled';
+  if (booking.status === 'confirmed' && isWithinBookingDates(booking, date)) return 'active';
+  if (isPastBooking(booking, date)) return 'expired';
+  if (booking.status === 'pending') return 'pending';
+  if (booking.status === 'confirmed') return 'confirmed';
   return 'upcoming';
 };
+
+const isReviewableBooking = (booking, date = new Date()) =>
+  Boolean(booking.vehicle && ['completed', 'expired'].includes(displayStatus(booking, date)));
 
 const SkeletonRow = () => (
   <div className="flex items-center gap-4 py-3 animate-pulse">
@@ -72,6 +108,8 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [now, setNow] = useState(() => new Date());
+  const [savedVehicles, setSavedVehicles] = useState([]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -90,10 +128,29 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
     fetchBookings();
   }, [user.token]);
 
-  const activeBooking = bookings.find((b) => b.status === 'active');
-  const completedCount = bookings.filter((b) => b.status === 'completed').length;
+  useEffect(() => {
+    const fetchSavedVehicles = async () => {
+      try {
+        const { data } = await axios.get(`${API}/api/users/saved-vehicles`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        setSavedVehicles(data || []);
+      } catch {
+        setSavedVehicles([]);
+      }
+    };
+    fetchSavedVehicles();
+  }, [user.token]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const activeBooking = bookings.find((b) => displayStatus(b, now) === 'active');
+  const completedCount = bookings.filter((b) => ['completed', 'expired'].includes(displayStatus(b, now))).length;
   const totalSpent = bookings
-    .filter((b) => b.status === 'completed')
+    .filter((b) => ['completed', 'expired', 'active', 'confirmed'].includes(displayStatus(b, now)))
     .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
 
   const returnCar = async (id) => {
@@ -108,6 +165,17 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       );
     } catch {
       setError('Could not request return. Try again.');
+    }
+  };
+
+  const removeSavedVehicle = async (vehicleId) => {
+    try {
+      await axios.put(`${API}/api/users/saved-vehicles/${vehicleId}`, null, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      setSavedVehicles((prev) => prev.filter((vehicle) => vehicle._id !== vehicleId));
+    } catch {
+      setError('Could not remove saved car. Try again.');
     }
   };
 
@@ -137,6 +205,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
     {
       id: 'saved',
       label: 'Saved',
+      badge: savedVehicles.length || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M8 13.5s-5.5-3.5-5.5-7A3.25 3.25 0 0 1 8 4a3.25 3.25 0 0 1 5.5 2.5c0 3.5-5.5 7-5.5 7z" />
@@ -308,7 +377,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                               ? ` – ${new Date(b.endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}`
                               : ''}
                           </span>
-                          <StatusBadge status={displayStatus(b)} />
+                          <StatusBadge status={displayStatus(b, now)} />
                           <span className="text-[0.875rem] font-semibold text-sand-900 md:text-right tabular-nums">
                             {b.totalPrice?.toLocaleString() || '—'} EGP
                           </span>
@@ -443,7 +512,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                           ? ` – ${new Date(b.endDate).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}`
                           : ''}
                       </span>
-                      <StatusBadge status={displayStatus(b)} />
+                      <StatusBadge status={displayStatus(b, now)} />
                       <div className="space-y-1">
                         <span className="block text-[0.8125rem] font-medium text-sand-700">
                           {paymentLabels[b.payment?.method] || 'Not set'}
@@ -454,7 +523,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                         {b.totalPrice?.toLocaleString() || '—'} EGP
                       </span>
                       <div className="md:text-right">
-                        {b.status === 'active' && !b.renterFinished && (
+                        {displayStatus(b, now) === 'active' && !b.renterFinished && (
                           <button
                             onClick={() => returnCar(b._id)}
                             className="text-[0.75rem] font-semibold text-primary-700 hover:text-primary-900 transition-colors"
@@ -462,17 +531,17 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                             Return
                           </button>
                         )}
-                        {b.status === 'active' && b.renterFinished && (
+                        {displayStatus(b, now) === 'active' && b.renterFinished && (
                           <span className="text-[0.75rem] text-sand-500">
                             Awaiting return
                           </span>
                         )}
-                        {b.status === 'completed' && b.vehicle && (
+                        {isReviewableBooking(b, now) && (
                           <Link
                             to={`/vehicles/${b.vehicle._id}`}
                             className="text-[0.75rem] font-semibold text-primary-700 hover:text-primary-900 transition-colors"
                           >
-                            Book again
+                            Review
                           </Link>
                         )}
                       </div>
@@ -491,11 +560,56 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
             Saved Vehicles
           </h1>
-          <EmptyState
-            message="You haven't saved any vehicles yet. Tap the heart on any listing to save it here."
-            cta="Browse Fleet"
-            href="/explore"
-          />
+          {savedVehicles.length === 0 ? (
+            <EmptyState
+              message="You haven't saved any vehicles yet. Tap the heart on any listing to save it here."
+              cta="Browse Fleet"
+              href="/explore"
+            />
+          ) : (
+            <div className="bg-sand-50 border border-sand-200 rounded-soft overflow-hidden">
+              <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_110px_100px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
+                <span>Vehicle</span>
+                <span>Location</span>
+                <span>Daily Rate</span>
+                <span className="text-right">Action</span>
+              </div>
+              <div className="divide-y divide-sand-100">
+                {savedVehicles.map((vehicle) => (
+                  <div
+                    key={vehicle._id}
+                    className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_110px_100px] gap-2 md:gap-4 items-center px-4 py-3 hover:bg-sand-100/60 transition-colors duration-100"
+                  >
+                    <Link to={`/vehicles/${vehicle._id}`} className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={getImg(vehicle)}
+                        alt=""
+                        className="w-12 h-9 rounded object-cover bg-sand-100 flex-shrink-0"
+                      />
+                      <span className="text-[0.875rem] font-medium text-sand-900 truncate">
+                        {vehicle.make} {vehicle.model}
+                      </span>
+                    </Link>
+                    <span className="text-[0.8125rem] text-sand-600 truncate">
+                      {getVehicleAreaLabel(vehicle)}
+                    </span>
+                    <span className="text-[0.875rem] font-semibold text-primary-800 tabular-nums">
+                      {vehicle.price_per_day?.toLocaleString() || 'Not set'} EGP
+                    </span>
+                    <div className="md:text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeSavedVehicle(vehicle._id)}
+                        className="text-[0.75rem] font-semibold text-red-600 hover:text-red-800 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

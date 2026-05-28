@@ -1,6 +1,27 @@
 const Review = require('../models/Review');
 const Vehicle = require('../models/vehicle');
 const User = require('../models/User');
+const Booking = require('../models/booking');
+
+const getRentalEndDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (
+    date.getHours() === 0 &&
+    date.getMinutes() === 0 &&
+    date.getSeconds() === 0 &&
+    date.getMilliseconds() === 0
+  ) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date;
+};
+
+const isReviewableBooking = (booking) => {
+  const end = getRentalEndDate(booking.endDate);
+  return ['completed', 'expired'].includes(booking.status) || Boolean(end && end < new Date());
+};
 
 // @desc    Create a new review & update averages
 // @route   POST /api/reviews
@@ -8,6 +29,33 @@ const createReview = async (req, res) => {
   const { targetUser, targetVehicle, bookingReference, rating, comment } = req.body;
 
   try {
+    const booking = await Booking.findById(bookingReference);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (booking.renter?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the renter can review this booking.' });
+    }
+
+    if (targetVehicle && booking.vehicle?.toString() !== targetVehicle.toString()) {
+      return res.status(400).json({ message: 'This booking does not match that vehicle.' });
+    }
+
+    if (!isReviewableBooking(booking)) {
+      return res.status(400).json({ message: 'You can review after the rental ends.' });
+    }
+
+    const existingReview = await Review.findOne({
+      author: req.user._id,
+      bookingReference,
+      ...(targetVehicle ? { targetVehicle } : {}),
+      ...(targetUser ? { targetUser } : {}),
+    });
+    if (existingReview) {
+      return res.status(409).json({ message: 'You already reviewed this booking.' });
+    }
+
     // 1. Create and save the review
     const review = new Review({
       author: req.user._id,

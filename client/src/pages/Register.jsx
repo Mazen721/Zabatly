@@ -303,9 +303,9 @@ export default function Register() {
                 <RegisterInput id="reg-language" label="Preferred language" value={accountDetails.preferredLanguage} placeholder="English" onChange={(value) => setAccountDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <RegisterInput id="reg-emergency-name" label="Emergency contact" value={accountDetails.emergencyContactName} placeholder="Name" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
-                <RegisterInput id="reg-emergency-phone" label="Contact phone" type="tel" value={accountDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
-                <RegisterInput id="reg-emergency-relation" label="Relation" value={accountDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
+                <RegisterInput id="reg-emergency-name" label="Emergency contact (optional)" value={accountDetails.emergencyContactName} placeholder="Name" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
+                <RegisterInput id="reg-emergency-phone" label="Contact phone (optional)" type="tel" value={accountDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
+                <RegisterInput id="reg-emergency-relation" label="Relation (optional)" value={accountDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
               </div>
             </fieldset>
 

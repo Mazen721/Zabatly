@@ -96,7 +96,27 @@ function SkeletonCard() {
 
 /* ── Vehicle Card ─────────────────────────────────────────────── */
 
-function VehicleCard({ vehicle, recommended }) {
+function SaveButton({ saved, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={saved ? 'Remove from saved cars' : 'Save car'}
+      title={saved ? 'Remove from saved cars' : 'Save car'}
+      className={`absolute bottom-2.5 right-2.5 z-30 flex h-8 w-8 items-center justify-center rounded-full border transition-colors duration-150 ${
+        saved
+          ? 'border-primary-800 bg-primary-800 text-white'
+          : 'border-sand-200 bg-sand-50/90 text-sand-700 hover:bg-sand-50 hover:text-primary-800'
+      }`}
+    >
+      <svg className="h-4 w-4" viewBox="0 0 16 16" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 13.5s-5.5-3.5-5.5-7A3.25 3.25 0 0 1 8 4a3.25 3.25 0 0 1 5.5 2.5c0 3.5-5.5 7-5.5 7z" />
+      </svg>
+    </button>
+  );
+}
+
+function VehicleCard({ vehicle, recommended, saved, onToggleSave }) {
   return (
     <Link
       to={`/vehicles/${vehicle._id}`}
@@ -104,6 +124,7 @@ function VehicleCard({ vehicle, recommended }) {
     >
       <div className="relative">
         <ImageCarousel images={vehicle.images} alt={`${vehicle.make} ${vehicle.model}`} />
+        <SaveButton saved={saved} onToggle={onToggleSave} />
         <span className="absolute top-2.5 left-2.5 bg-sand-50/90 backdrop-blur-sm px-2 py-0.5 rounded text-[0.6875rem] font-semibold text-sand-700 capitalize z-10">
           {vehicle.type}
         </span>
@@ -254,6 +275,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [savedVehicleIds, setSavedVehicleIds] = useState([]);
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -273,6 +295,42 @@ export default function Home() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('userInfo') || 'null');
+    if (!user?.token) return;
+
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/api/users/saved-vehicles`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        setSavedVehicleIds((data || []).map((vehicle) => vehicle._id));
+      } catch {
+        setSavedVehicleIds([]);
+      }
+    })();
+  }, []);
+
+  const toggleSave = async (event, vehicleId) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const user = JSON.parse(localStorage.getItem('userInfo') || 'null');
+    if (!user?.token) {
+      window.location.href = '/login';
+      return;
+    }
+
+    try {
+      const { data } = await axios.put(`${API}/api/users/saved-vehicles/${vehicleId}`, null, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      setSavedVehicleIds(data.savedVehicleIds || []);
+    } catch {
+      setError('Could not update saved cars. Try again.');
+    }
+  };
 
   const cityOptions = useMemo(() => getFilterCityOptions(vehicles), [vehicles]);
 
@@ -424,7 +482,13 @@ export default function Home() {
             {!loading && !error && filtered.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                 {filtered.map((v) => (
-                  <VehicleCard key={v._id} vehicle={v} recommended={isRecommended(v)} />
+                  <VehicleCard
+                    key={v._id}
+                    vehicle={v}
+                    recommended={isRecommended(v)}
+                    saved={savedVehicleIds.includes(v._id)}
+                    onToggleSave={(event) => toggleSave(event, v._id)}
+                  />
                 ))}
               </div>
             )}

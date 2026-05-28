@@ -65,6 +65,26 @@ const getBookingStatusLabel = (status) => {
   return 'Upcoming';
 };
 
+const getRentalEndDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (
+    date.getHours() === 0 &&
+    date.getMinutes() === 0 &&
+    date.getSeconds() === 0 &&
+    date.getMilliseconds() === 0
+  ) {
+    date.setHours(23, 59, 59, 999);
+  }
+  return date;
+};
+
+const isReviewableBooking = (booking) => {
+  const end = getRentalEndDate(booking.endDate);
+  return ['completed', 'expired'].includes(booking.status) || Boolean(end && end < new Date());
+};
+
 function AvailabilityStatus({ loading, startDate, endDate, availability }) {
   if (!startDate || !endDate) {
     return (
@@ -166,6 +186,17 @@ export default function VehicleDetails() {
   const [availability, setAvailability] = useState(null);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [reservedRanges, setReservedRanges] = useState([]);
+  const [saved, setSaved] = useState(false);
+
+  // Review form state
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [completedBookingId, setCompletedBookingId] = useState(null);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState('');
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -185,6 +216,101 @@ export default function VehicleDetails() {
       }
     })();
   }, [id]);
+
+  useEffect(() => {
+    if (!userInfo?.token) return;
+
+    (async () => {
+      try {
+        const { data } = await axios.get(`${API}/api/users/saved-vehicles`, {
+          headers: { Authorization: `Bearer ${userInfo.token}` },
+        });
+        setSaved((data || []).some((item) => item._id === id));
+      } catch {
+        setSaved(false);
+      }
+    })();
+  }, [id, userInfo?.token]);
+
+  const toggleSaved = async () => {
+    if (!userInfo?.token) return navigate('/login');
+
+    try {
+      const { data } = await axios.put(`${API}/api/users/saved-vehicles/${id}`, null, {
+        headers: { Authorization: `Bearer ${userInfo.token}` },
+      });
+      setSaved(Boolean(data.saved));
+    } catch {
+      setBookingError('Could not update saved cars. Try again.');
+    }
+  };
+
+  // Check if user can review (has a completed booking for this vehicle)
+  useEffect(() => {
+    if (!userInfo?.token || !id) return;
+    (async () => {
+      try {
+        const { data: bookings } = await axios.get(`${API}/api/bookings`, {
+          headers: { Authorization: `Bearer ${userInfo.token}` },
+        });
+        const reviewable = bookings.find(
+          (b) =>
+            (b.vehicle?._id === id || b.vehicle === id) &&
+            (b.renter?._id === userInfo._id || b.renter === userInfo._id) &&
+            isReviewableBooking(b)
+        );
+        if (reviewable) {
+          setCompletedBookingId(reviewable._id);
+          setCanReview(true);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [id, userInfo?.token, userInfo?._id]);
+
+  // Check if user already reviewed this vehicle
+  useEffect(() => {
+    if (!userInfo?._id || reviews.length === 0) return;
+    const alreadyReviewed = reviews.some(
+      (r) => r.author?._id === userInfo._id
+    );
+    if (alreadyReviewed) {
+      setHasReviewed(true);
+      setCanReview(false);
+    }
+  }, [reviews, userInfo?._id]);
+
+  const submitReview = async () => {
+    if (!reviewRating || !completedBookingId) return;
+    setReviewSubmitting(true);
+    try {
+      await axios.post(
+        `${API}/api/reviews`,
+        {
+          targetVehicle: id,
+          bookingReference: completedBookingId,
+          rating: reviewRating,
+          comment: reviewComment,
+        },
+        { headers: { Authorization: `Bearer ${userInfo.token}` } }
+      );
+      // Refresh reviews
+      const { data: freshReviews } = await axios.get(`${API}/api/reviews/vehicle/${id}`);
+      setReviews(freshReviews);
+      // Refresh vehicle to get updated rating
+      const { data: freshVehicle } = await axios.get(`${API}/api/vehicles/${id}`);
+      setVehicle(freshVehicle);
+      setCanReview(false);
+      setHasReviewed(true);
+      setReviewRating(0);
+      setReviewComment('');
+      setReviewSuccess('Review submitted! Thank you.');
+      setTimeout(() => setReviewSuccess(''), 4000);
+    } catch (err) {
+      setReviewSuccess('');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (!vehicle?._id) return;
@@ -253,7 +379,7 @@ export default function VehicleDetails() {
     if (availability?.available !== true) { setBookingError('Choose dates that are available before payment.'); return; }
     if (needsDriver && !route) { setBookingError('Please provide a route for the driver.'); return; }
 
-    const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
+    const days = Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
     const totalPrice = vehicle.price_per_day * days + (needsDriver ? vehicle.driver_cost * days : 0);
 
     const bookingDraft = {
@@ -272,7 +398,7 @@ export default function VehicleDetails() {
     navigate('/payment', { state: { bookingDraft } });
   };
 
-  const days = startDate && endDate ? Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1 : 0;
+  const days = startDate && endDate ? Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1 : 0;
   const basePrice = vehicle ? vehicle.price_per_day * days : 0;
   const driverFee = needsDriver && vehicle ? vehicle.driver_cost * days : 0;
 
@@ -317,7 +443,6 @@ export default function VehicleDetails() {
     { label: 'Seats', value: `${vehicle.capacity} passengers` },
     { label: 'Fuel', value: vehicle.fuel ? vehicle.fuel.charAt(0).toUpperCase() + vehicle.fuel.slice(1) : 'Petrol' },
     { label: 'AC', value: vehicle.ac ? 'Yes' : 'No' },
-    { label: 'Insurance', value: 'Included' },
   ];
 
   return (
@@ -384,7 +509,24 @@ export default function VehicleDetails() {
             <div>
               <div className="flex items-start justify-between gap-4 mb-1">
                 <h1 className="text-[1.75rem] font-bold text-sand-950 leading-tight">{vehicle.make} {vehicle.model}</h1>
-                <span className="shrink-0 bg-sand-100 text-sand-600 text-[0.7rem] font-semibold px-2.5 py-1 rounded capitalize">{vehicle.type}</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleSaved}
+                    className={`flex h-9 w-9 items-center justify-center rounded-subtle border transition-colors duration-150 ${
+                      saved
+                        ? 'border-primary-800 bg-primary-800 text-white'
+                        : 'border-sand-200 bg-sand-100 text-sand-700 hover:text-primary-800'
+                    }`}
+                    aria-label={saved ? 'Remove from saved cars' : 'Save car'}
+                    title={saved ? 'Remove from saved cars' : 'Save car'}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 16 16" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 13.5s-5.5-3.5-5.5-7A3.25 3.25 0 0 1 8 4a3.25 3.25 0 0 1 5.5 2.5c0 3.5-5.5 7-5.5 7z" />
+                    </svg>
+                  </button>
+                  <span className="bg-sand-100 text-sand-600 text-[0.7rem] font-semibold px-2.5 py-1 rounded capitalize">{vehicle.type}</span>
+                </div>
               </div>
               <p className="text-[0.85rem] text-sand-500">
                 {vehicle.year} &middot; Listed by <span className="text-sand-700 font-medium">{vehicle.owner?.name || 'Zabatly Partner'}</span>
@@ -415,7 +557,10 @@ export default function VehicleDetails() {
             )}
 
             {/* Owner */}
-            <div className="flex items-center gap-4 py-5 border-t border-sand-200">
+            <Link
+              to={vehicle.owner?._id ? `/user/${vehicle.owner._id}` : '#'}
+              className="flex items-center gap-4 py-5 border-t border-sand-200 transition-colors duration-150 hover:bg-sand-100/50"
+            >
               <div className="w-12 h-12 rounded-full overflow-hidden bg-sand-200 shrink-0">
                 {vehicle.owner?.profilePicture ? (
                   <img src={vehicle.owner.profilePicture} alt={vehicle.owner?.name} className="w-full h-full object-cover" />
@@ -434,7 +579,10 @@ export default function VehicleDetails() {
                   {vehicle.owner?.rating ? <StarRating rating={vehicle.owner.rating} count={vehicle.owner.numReviews} /> : <span className="text-[0.75rem] text-sand-400">New on Zabatly</span>}
                 </div>
               </div>
-            </div>
+              <svg className="h-4 w-4 text-sand-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 3l5 5-5 5" />
+              </svg>
+            </Link>
 
             {/* Map */}
             <div>
@@ -459,6 +607,70 @@ export default function VehicleDetails() {
                 <h2 className="text-[1.1rem] font-semibold text-sand-950">Reviews</h2>
                 {vehicle.rating > 0 && <StarRating rating={vehicle.rating} count={vehicle.numReviews} />}
               </div>
+
+              {/* Review success message */}
+              {reviewSuccess && (
+                <div className="mb-4 rounded-subtle border border-green-200 bg-green-50 px-3 py-2 text-[0.8rem] font-semibold text-green-700">
+                  {reviewSuccess}
+                </div>
+              )}
+
+              {/* Write a review form */}
+              {canReview && !hasReviewed && (
+                <div className="mb-6 rounded-soft border border-sand-200 bg-sand-100/50 p-4 space-y-3">
+                  <p className="text-[0.85rem] font-semibold text-sand-900">Write a Review</p>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setReviewRating(s)}
+                        onMouseEnter={() => setReviewHover(s)}
+                        onMouseLeave={() => setReviewHover(0)}
+                        className="transition-transform duration-100 hover:scale-110"
+                      >
+                        <svg
+                          className={`w-6 h-6 transition-colors duration-100 ${
+                            s <= (reviewHover || reviewRating) ? 'text-signal-500' : 'text-sand-300'
+                          }`}
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      </button>
+                    ))}
+                    {reviewRating > 0 && (
+                      <span className="ml-2 text-[0.78rem] font-medium text-sand-500 self-center">
+                        {reviewRating === 1 ? 'Poor' : reviewRating === 2 ? 'Fair' : reviewRating === 3 ? 'Good' : reviewRating === 4 ? 'Very Good' : 'Excellent'}
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Share your experience (optional)"
+                    className="w-full bg-sand-50 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 resize-none h-20"
+                  />
+                  <button
+                    onClick={submitReview}
+                    disabled={!reviewRating || reviewSubmitting}
+                    className={`px-4 py-2 rounded-subtle text-[0.8rem] font-semibold transition-colors ${
+                      reviewRating && !reviewSubmitting
+                        ? 'bg-primary-800 text-white hover:bg-primary-900'
+                        : 'bg-sand-200 text-sand-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                  </button>
+                </div>
+              )}
+
+              {hasReviewed && !reviewSuccess && (
+                <div className="mb-4 rounded-subtle bg-sand-100 px-3 py-2 text-[0.78rem] text-sand-500">
+                  You've already reviewed this vehicle.
+                </div>
+              )}
 
               {reviews.length === 0 ? (
                 <p className="text-[0.85rem] text-sand-400 py-6">No reviews yet. Be the first to review this {vehicle.make}.</p>

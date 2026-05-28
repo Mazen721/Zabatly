@@ -90,7 +90,7 @@ export default function Profile() {
   const [section, setSection] = useState('account');
 
   // Profile form
-  const [age, setAge] = useState('');
+
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [localPreview, setLocalPreview] = useState(null);
@@ -226,7 +226,6 @@ export default function Profile() {
     const parsed = JSON.parse(stored);
     const token = parsed.token;
     setUser(parsed);
-    setAge(parsed.age || '');
     setDriverDetails(getDriverDetails(parsed));
     setProfileDetails(getProfileDetails(parsed));
     setPreview(getProfilePictureUrl(parsed.profilePicture));
@@ -239,7 +238,7 @@ export default function Profile() {
         const fresh = { ...data, token };
         localStorage.setItem('userInfo', JSON.stringify(fresh));
         setUser(fresh);
-        setAge(fresh.age || '');
+  
         setDriverDetails(getDriverDetails(fresh));
         setProfileDetails(getProfileDetails(fresh));
         setPreview(getProfilePictureUrl(fresh.profilePicture));
@@ -270,7 +269,7 @@ export default function Profile() {
     e.preventDefault();
     setSaving(true);
     const formData = new FormData();
-    if (age) formData.append('age', age);
+
     Object.entries(profileDetails).forEach(([key, value]) => {
       formData.append(key, value);
     });
@@ -800,22 +799,6 @@ export default function Profile() {
 
           {/* Edit profile form */}
           <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div>
-              <label
-                htmlFor="age"
-                className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5"
-              >
-                Age
-              </label>
-              <input
-                id="age"
-                type="number"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                placeholder="25"
-                className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 placeholder:text-sand-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
-              />
-            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <ProfileInput id="profile-dob" label="Date of birth" type="date" value={profileDetails.dateOfBirth} onChange={(value) => setProfileDetails((prev) => ({ ...prev, dateOfBirth: value }))} />
@@ -849,9 +832,9 @@ export default function Profile() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <ProfileInput id="profile-emergency-name" label="Emergency contact" value={profileDetails.emergencyContactName} placeholder="Name" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
-              <ProfileInput id="profile-emergency-phone" label="Contact phone" type="tel" value={profileDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
-              <ProfileInput id="profile-emergency-relation" label="Relation" value={profileDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
+              <ProfileInput id="profile-emergency-name" label="Emergency contact (optional)" value={profileDetails.emergencyContactName} placeholder="Name" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
+              <ProfileInput id="profile-emergency-phone" label="Contact phone (optional)" type="tel" value={profileDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
+              <ProfileInput id="profile-emergency-relation" label="Relation (optional)" value={profileDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
             </div>
 
             {user.role === 'driver' && (

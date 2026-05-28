@@ -304,7 +304,7 @@ const getMyBookings = async (req, res) => {
       $or: [{ renter: req.user.id }, { owner: req.user.id }, { driver: req.user.id }],
     })
       .populate('vehicle', 'make model images')
-      .populate('renter', 'name phone')
+      .populate('renter', 'name phone profilePicture')
       .populate('owner', 'name')
       .populate('driver', 'name phone')
       .sort({ createdAt: -1 })

@@ -16,6 +16,7 @@ const statusColors = {
   pending: 'bg-signal-50 text-signal-700 border border-signal-200',
   completed: 'bg-primary-50 text-primary-700 border border-primary-200',
   cancelled: 'bg-sand-100 text-sand-600 border border-sand-200',
+  expired: 'bg-sand-100 text-sand-600 border border-sand-200',
 };
 
 const StatusBadge = ({ status }) => (
@@ -77,7 +78,42 @@ const getRemainingText = (endDate, now) => {
 const isPaidBooking = (booking) =>
   booking.paymentStatus === 'paid' || booking.payment?.status === 'confirmed';
 
-const ownerRentalAmount = (booking) => booking.rentalPrice || booking.totalPrice || 0;
+const ownerRentalAmount = (booking) => {
+  const rentalPrice = Number(booking.rentalPrice || 0);
+  if (rentalPrice > 0) return rentalPrice;
+
+  const totalPrice = Number(booking.totalPrice || booking.payment?.amount || 0);
+  const serviceFee = Number(booking.serviceFee || 0);
+  if (serviceFee > 0) return Math.max(totalPrice - serviceFee, 0);
+
+  return totalPrice > 0 ? Math.round(totalPrice / 1.1) : 0;
+};
+
+const isOwnerEarningBooking = (booking) =>
+  ['completed', 'active', 'confirmed'].includes(booking.status) || isPaidBooking(booking);
+
+const getBookingEnd = (booking) => getRentalEndDate(booking.endDate);
+
+const isWithinBookingDates = (booking, date) => {
+  const start = booking.startDate ? new Date(booking.startDate) : null;
+  const end = getBookingEnd(booking);
+  if (!start || !end || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+  return start <= date && end >= date;
+};
+
+const isCurrentOwnerRental = (booking, date) =>
+  booking.status === 'active' || (booking.status === 'confirmed' && isWithinBookingDates(booking, date));
+
+const isUpcomingOwnerBooking = (booking, date) => {
+  const start = booking.startDate ? new Date(booking.startDate) : null;
+  return ['pending', 'confirmed'].includes(booking.status) && start && start > date && !isCurrentOwnerRental(booking, date);
+};
+
+const isExpiredOwnerBooking = (booking, date) => {
+  const end = getBookingEnd(booking);
+  return ['expired', 'cancelled', 'completed'].includes(booking.status)
+    || (end && end < date && booking.status !== 'active');
+};
 
 const SkeletonBlock = () => (
   <div className="animate-pulse space-y-3 py-4">
@@ -136,18 +172,29 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     return () => window.clearInterval(timer);
   }, []);
 
+  const getOwnerId = (b) => b.owner?._id || b.owner || '';
   const myBookings = bookings.filter(
-    (b) => b.owner?._id === user._id || b.owner === user._id
+    (b) => getOwnerId(b).toString() === user._id.toString()
   );
   const pendingRequests = myBookings.filter((b) => b.status === 'pending' && !isPaidBooking(b));
-  const activeRentals = myBookings.filter((b) => b.status === 'active');
+  const activeRentals = myBookings.filter((b) => isCurrentOwnerRental(b, now));
   const confirmedBookings = myBookings.filter((b) => b.status === 'confirmed');
   const completedBookings = myBookings.filter((b) => b.status === 'completed');
-  const revenue = completedBookings.reduce(
+  const paidBookings = myBookings.filter(isOwnerEarningBooking);
+  const upcomingBookings = myBookings.filter((b) => isUpcomingOwnerBooking(b, now));
+  const expiredBookings = myBookings.filter((b) => isExpiredOwnerBooking(b, now));
+  const revenue = paidBookings.reduce(
     (sum, b) => sum + ownerRentalAmount(b),
     0
   );
-  const availableCount = vehicles.filter((v) => v.isAvailable !== false).length;
+  const rentedVehicleIds = new Set(
+    activeRentals
+      .map((b) => b.vehicle?._id || b.vehicle)
+      .filter(Boolean)
+      .map((id) => id.toString())
+  );
+  const rentedCount = rentedVehicleIds.size;
+  const availableCount = Math.max(vehicles.length - rentedCount, 0);
 
   const updateStatus = async (id, status) => {
     try {
@@ -201,19 +248,9 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       ),
     },
     {
-      id: 'requests',
-      label: 'Requests',
-      badge: pendingRequests.length || null,
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H2v9h4l2 2.5L10 11h4V2z" />
-        </svg>
-      ),
-    },
-    {
       id: 'bookings',
       label: 'Bookings',
-      badge: activeRentals.length + confirmedBookings.length || null,
+      badge: pendingRequests.length + activeRentals.length + upcomingBookings.length || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2.5" y="3" width="11" height="10.5" rx="1.5" />
@@ -267,10 +304,10 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       </span>
       <span className="text-sand-500">/</span>
       <button
-        onClick={() => setSection('requests')}
+        onClick={() => setSection('bookings')}
         className="text-[0.8125rem] font-medium text-primary-700 hover:text-primary-900 transition-colors"
       >
-        Review now
+        View bookings
       </button>
     </div>
   ) : activeRentals.length > 0 ? (
@@ -327,7 +364,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
             <MetricTile label="Available" value={availableCount} accent />
             <MetricTile
               label="Rented"
-              value={vehicles.length - availableCount}
+              value={rentedCount}
             />
             <MetricTile label="Revenue" value={`${revenue.toLocaleString()} EGP`} />
           </div>
@@ -340,7 +377,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                   Pending Requests
                 </h2>
                 <button
-                  onClick={() => setSection('requests')}
+                  onClick={() => setSection('bookings')}
                   className="text-[0.75rem] font-medium text-primary-600 hover:text-primary-800 transition-colors"
                 >
                   View all
@@ -471,62 +508,6 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         </div>
       )}
 
-      {/* Requests */}
-      {section === 'requests' && (
-        <div>
-          <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Booking Requests
-          </h1>
-          {pendingRequests.length === 0 ? (
-            <div className="border border-sand-200 rounded-soft py-10 text-center text-[0.8125rem] text-sand-500">
-              No pending requests right now.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {pendingRequests.map((b) => (
-                <RequestRow
-                  key={b._id}
-                  booking={b}
-                  onAccept={() => updateStatus(b._id, 'active')}
-                  onDecline={() => updateStatus(b._id, 'cancelled')}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Completed history */}
-          {completedBookings.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-3">
-                Completed
-              </h2>
-              <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
-                {completedBookings.slice(0, 10).map((b) => (
-                  <div
-                    key={b._id}
-                    className="flex items-center gap-4 px-4 py-3"
-                  >
-                    <img
-                      src={getImg(b.vehicle)}
-                      alt=""
-                      className="w-10 h-7 rounded object-cover bg-sand-100"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[0.8125rem] text-sand-800 truncate">
-                        {b.vehicle?.make} {b.vehicle?.model} / {b.renter?.name || 'User'}
-                      </p>
-                    </div>
-                    <span className="text-[0.8125rem] font-semibold text-sand-900 tabular-nums">
-                      {ownerRentalAmount(b).toLocaleString()} EGP
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Bookings */}
       {section === 'bookings' && (
         <div>
@@ -536,7 +517,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                 Bookings
               </h1>
               <p className="mt-1 text-[0.8125rem] text-sand-500">
-                Confirmed rentals are paid and cannot be declined.
+                Current, upcoming, and expired rentals for your listed cars.
               </p>
             </div>
           </div>
@@ -548,19 +529,53 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
               No bookings for your vehicles yet.
             </div>
           ) : (
-            <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
-              {[...myBookings]
-                .sort((a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0))
-                .map((b) => (
-                  <BookingRow
-                    key={b._id}
-                    booking={b}
-                    now={now}
-                    onAccept={() => updateStatus(b._id, 'active')}
-                    onDecline={() => updateStatus(b._id, 'cancelled')}
-                    onComplete={() => updateStatus(b._id, 'completed')}
-                  />
-                ))}
+            <div className="space-y-6">
+              <section>
+                <h2 className="mb-3 text-[0.95rem] font-semibold text-sand-900">Pending Requests</h2>
+                {pendingRequests.length === 0 ? (
+                  <div className="border border-sand-200 rounded-soft py-6 text-center text-[0.8125rem] text-sand-500">
+                    No pending requests right now.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingRequests.map((b) => (
+                      <RequestRow
+                        key={b._id}
+                        booking={b}
+                        onAccept={() => updateStatus(b._id, 'active')}
+                        onDecline={() => updateStatus(b._id, 'cancelled')}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+              <BookingGroup
+                title="Active Bookings"
+                empty="No active bookings right now."
+                bookings={activeRentals}
+                now={now}
+                onAccept={updateStatus}
+                onDecline={updateStatus}
+                onComplete={updateStatus}
+              />
+              <BookingGroup
+                title="Upcoming Bookings"
+                empty="No upcoming bookings."
+                bookings={upcomingBookings}
+                now={now}
+                onAccept={updateStatus}
+                onDecline={updateStatus}
+                onComplete={updateStatus}
+              />
+              <BookingGroup
+                title="Expired Bookings"
+                empty="No expired bookings."
+                bookings={expiredBookings}
+                now={now}
+                onAccept={updateStatus}
+                onDecline={updateStatus}
+                onComplete={updateStatus}
+              />
             </div>
           )}
         </div>
@@ -603,7 +618,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                       {b.vehicle?.make} {b.vehicle?.model}
                     </span>
                     <span className="text-[0.8125rem] text-sand-600">
-                      {b.renter?.name || 'User'}
+                      <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors">{b.renter?.name || 'User'}</Link>
                     </span>
                     <span className="text-[0.8125rem] text-sand-600">
                       {b.endDate
@@ -638,13 +653,13 @@ function RequestRow({ booking: b, onAccept, onDecline }) {
       />
       <div className="flex-1 min-w-0">
         <p className="text-[0.875rem] font-medium text-sand-900">
-          {b.renter?.name || 'Guest'}{' '}
+          <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors">{b.renter?.name || 'Guest'}</Link>{' '}
           <span className="text-sand-500 font-normal">
             wants {b.vehicle?.make} {b.vehicle?.model}
           </span>
         </p>
         <p className="text-[0.8125rem] font-semibold text-sand-800 tabular-nums">
-          {b.totalPrice?.toLocaleString()} EGP
+          {ownerRentalAmount(b).toLocaleString()} EGP
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <span className="text-[0.72rem] font-medium text-sand-500">
@@ -668,6 +683,36 @@ function RequestRow({ booking: b, onAccept, onDecline }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function BookingGroup({ title, empty, bookings, now, onAccept, onDecline, onComplete }) {
+  const sortedBookings = [...bookings].sort(
+    (a, b) => new Date(b.createdAt || b.startDate || 0) - new Date(a.createdAt || a.startDate || 0)
+  );
+
+  return (
+    <section>
+      <h2 className="mb-3 text-[0.95rem] font-semibold text-sand-900">{title}</h2>
+      {sortedBookings.length === 0 ? (
+        <div className="border border-sand-200 rounded-soft py-6 text-center text-[0.8125rem] text-sand-500">
+          {empty}
+        </div>
+      ) : (
+        <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
+          {sortedBookings.map((b) => (
+            <BookingRow
+              key={b._id}
+              booking={b}
+              now={now}
+              onAccept={() => onAccept(b._id, 'active')}
+              onDecline={() => onDecline(b._id, 'cancelled')}
+              onComplete={() => onComplete(b._id, 'completed')}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -699,7 +744,7 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
               )}
             </div>
             <p className="mt-1 text-[0.75rem] text-sand-500">
-              Rented by {b.renter?.name || 'User'}
+              Rented by <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors font-medium">{b.renter?.name || 'User'}</Link>
             </p>
             <div className="mt-3 grid gap-2 text-[0.75rem] sm:grid-cols-2">
               <div className="rounded-subtle bg-sand-100 px-3 py-2">
@@ -719,7 +764,7 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <span className="text-[0.8125rem] font-semibold tabular-nums text-sand-900">
-            {(b.totalPrice || 0).toLocaleString()} EGP
+            {ownerRentalAmount(b).toLocaleString()} EGP
           </span>
           <PaymentProofLink path={b.payment?.proofUrl} />
           {canAccept && (

@@ -35,10 +35,11 @@ const formatCardNumber = (value) =>
 
 const detectBrand = (number) => {
   const digits = number.replace(/\D/g, '');
+  if (!digits) return 'Card';
   if (digits.startsWith('4')) return 'Visa';
-  const firstTwo = Number(digits.slice(0, 2));
+  if (digits.startsWith('5')) return 'Mastercard';
   const firstFour = Number(digits.slice(0, 4));
-  if ((firstTwo >= 51 && firstTwo <= 55) || (firstFour >= 2221 && firstFour <= 2720)) {
+  if (digits.length >= 4 && firstFour >= 2221 && firstFour <= 2720) {
     return 'Mastercard';
   }
   return 'Card';

@@ -32,7 +32,7 @@ const reviewSchema = new mongoose.Schema({
   
   comment: { 
     type: String, 
-    required: true 
+    default: ''
   }
 }, { timestamps: true });
 
