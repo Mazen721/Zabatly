@@ -49,6 +49,7 @@ export default {
       },
       fontFamily: {
         sans: ['"Manrope"', 'system-ui', '-apple-system', 'sans-serif'],
+        arabic: ['"Cairo"', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         'display': ['clamp(2.25rem, 5vw + 0.5rem, 4rem)', { lineHeight: '1.08', letterSpacing: '-0.025em', fontWeight: '800' }],

@@ -1,0 +1,74 @@
+{
+  "nav": {
+    "browseCars": "تصفح العربيات",
+    "howItWorks": "إزاي بتشتغل",
+    "aboutUs": "مين احنا",
+    "help": "مساعدة",
+    "drivers": "السواقين",
+    "aiAssistant": "المساعد الذكي",
+    "dashboard": "لوحة التحكم",
+    "adminPanel": "لوحة الإدارة",
+    "listVehicle": "+ ضيف عربية",
+    "login": "سجّل دخول",
+    "logout": "تسجيل خروج",
+    "profileSettings": "إعدادات البروفايل",
+    "fleet": "الأسطول",
+    "backTo": "رجوع لـ {{target}}"
+  },
+  "actions": {
+    "save": "احفظ",
+    "cancel": "إلغاء",
+    "delete": "امسح",
+    "edit": "عدّل",
+    "loading": "جاري التحميل…",
+    "submit": "ابعت",
+    "back": "ارجع",
+    "next": "التالي",
+    "confirm": "أكّد",
+    "search": "دوّر",
+    "retry": "حاول تاني",
+    "clearFilters": "امسح الفلاتر",
+    "clearAllFilters": "امسح كل الفلاتر",
+    "viewAll": "شوف الكل",
+    "viewDetails": "شوف التفاصيل"
+  },
+  "notFound": {
+    "title": "الصفحة مش موجودة",
+    "message": "الطريق ده مش بيوصل لحاجة. يلا نرجعك تاني.",
+    "backHome": "ارجع لزبطلي"
+  },
+  "vehicle": {
+    "seats": "{{count}} كرسي",
+    "seat": "كرسي واحد",
+    "egpPerDay": "ج.م / يوم",
+    "egpDay": "ج.م/يوم",
+    "photoUnavailable": "مفيش صورة",
+    "rented": "مأجّرة",
+    "unavailable": "مش متاحة",
+    "recommended": "مقترحة",
+    "car": "عربية",
+    "auto": "أوتوماتيك",
+    "manual": "مانيوال",
+    "driver": "+ سواق"
+  },
+  "footer": {
+    "tagline": "تأجير عربيات ذكي ونقل، مصنوع لمصر.",
+    "product": "المنتج",
+    "browseVehicles": "تصفح العربيات",
+    "findDriver": "لاقي سواق",
+    "listYourVehicle": "ضيف عربيتك",
+    "company": "الشركة",
+    "about": "عننا",
+    "howItWorks": "إزاي بتشتغل",
+    "contact": "تواصل معانا",
+    "legal": "قانوني",
+    "privacyPolicy": "سياسة الخصوصية",
+    "termsOfService": "شروط الخدمة",
+    "copyright": "© {{year}} زبطلي. مشروع تخرج علوم حاسب ٢٠٢٦.",
+    "language": "عربي"
+  },
+  "errors": {
+    "genericError": "حصل مشكلة. حاول تاني.",
+    "loadFailed": "مقدرناش نحمّل البيانات. حاول تاني."
+  }
+}

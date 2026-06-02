@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import DashboardShell from './DashboardShell';
 import PaymentProofLink from '../PaymentProofLink';
 import { API } from '../../config/api';
@@ -19,15 +20,18 @@ const statusColors = {
   expired: 'bg-sand-100 text-sand-600 border border-sand-200',
 };
 
-const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold capitalize ${
-      statusColors[status] || statusColors.cancelled
-    }`}
-  >
-    {status}
-  </span>
-);
+const StatusBadge = ({ status }) => {
+  const { t } = useTranslation('dashboard');
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold capitalize ${
+        statusColors[status] || statusColors.cancelled
+      }`}
+    >
+      {t(`status.${status}`, status)}
+    </span>
+  );
+};
 
 const paymentLabels = {
   card: 'Card',
@@ -35,16 +39,16 @@ const paymentLabels = {
   instapay: 'InstaPay',
 };
 
-const formatRentalDate = (value) =>
+const formatRentalDate = (value, locale, fallback) =>
   value
-    ? new Date(value).toLocaleString('en-GB', {
+    ? new Date(value).toLocaleString(locale, {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
       })
-    : 'Not set';
+    : fallback;
 
 const getRentalEndDate = (value) => {
   if (!value) return null;
@@ -61,18 +65,18 @@ const getRentalEndDate = (value) => {
   return date;
 };
 
-const getRemainingText = (endDate, now) => {
+const getRemainingText = (endDate, now, t) => {
   const end = getRentalEndDate(endDate);
-  if (!end) return 'Rental end date not set';
+  if (!end) return t('time.rentalEndMissing');
 
   const diff = end.getTime() - now.getTime();
-  if (diff <= 0) return 'Rental period ended';
+  if (diff <= 0) return t('time.rentalEnded');
 
   const totalMinutes = Math.ceil(diff / 60000);
   const days = Math.floor(totalMinutes / (24 * 60));
   const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
   const minutes = totalMinutes % 60;
-  return `${days} days, ${hours} hours, ${minutes} minutes`;
+  return t('time.remaining', { days, hours, minutes });
 };
 
 const isPaidBooking = (booking) =>
@@ -137,6 +141,8 @@ const EmptyState = ({ message, cta, href }) => (
 );
 
 export default function OwnerDashboard({ user, returnTarget = null }) {
+  const { t, i18n } = useTranslation('dashboard');
+  const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB';
   const [section, setSection] = useState('overview');
   const [bookings, setBookings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -159,7 +165,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         setBookings(allBookings);
         setVehicles(ownVehicles);
       } catch {
-        setError('Could not load dashboard data. Try again.');
+        setError(t('owner.loadError'));
       } finally {
         setLoading(false);
       }
@@ -207,7 +213,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         prev.map((b) => (b._id === id ? { ...b, status } : b))
       );
     } catch {
-      setError('Failed to update booking status.');
+      setError(t('owner.updateError'));
     }
   };
 
@@ -218,14 +224,14 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       });
       setVehicles((prev) => prev.filter((v) => v._id !== vehicleId));
     } catch {
-      setError('Failed to remove vehicle.');
+      setError(t('owner.removeError'));
     }
   };
 
   const navItems = [
     {
       id: 'overview',
-      label: 'Overview',
+      label: t('common.overview'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2" width="5" height="5" rx="1" />
@@ -237,7 +243,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     },
     {
       id: 'vehicles',
-      label: 'My Vehicles',
+      label: t('owner.myVehicles'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2.5 10.5h11M3.5 6l1.5-3h6l1.5 3" />
@@ -249,7 +255,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     },
     {
       id: 'bookings',
-      label: 'Bookings',
+      label: t('owner.bookings'),
       badge: pendingRequests.length + activeRentals.length + upcomingBookings.length || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -260,7 +266,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     },
     {
       id: 'earnings',
-      label: 'Earnings',
+      label: t('owner.earnings'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 12l3-4 3 2 4-6" />
@@ -271,7 +277,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     { id: 'div1', type: 'divider', label: '' },
     {
       id: 'add-vehicle',
-      label: 'Add Vehicle',
+      label: t('owner.addVehicle'),
       href: '/add-vehicle',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -285,7 +291,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
   const bottomActions = [
     {
       id: 'profile',
-      label: 'Profile',
+      label: t('common.profile'),
       href: '/profile',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -300,35 +306,35 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     <div className="flex items-center gap-3">
       <span className="inline-block w-2 h-2 rounded-full bg-signal-500" />
       <span className="font-semibold text-sand-800">
-        {pendingRequests.length} pending request{pendingRequests.length > 1 ? 's' : ''}
+        {t('owner.pendingCount', { count: pendingRequests.length })}
       </span>
       <span className="text-sand-500">/</span>
       <button
         onClick={() => setSection('bookings')}
         className="text-[0.8125rem] font-medium text-primary-700 hover:text-primary-900 transition-colors"
       >
-        View bookings
+        {t('owner.viewBookings')}
       </button>
     </div>
   ) : activeRentals.length > 0 ? (
     <div className="flex items-center gap-3">
       <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
       <span className="font-semibold text-sand-800">
-        {activeRentals.length} active rental{activeRentals.length > 1 ? 's' : ''}
+        {t('owner.activeRentalCount', { count: activeRentals.length })}
       </span>
     </div>
   ) : confirmedBookings.length > 0 ? (
     <div className="flex items-center gap-3">
       <span className="inline-block w-2 h-2 rounded-full bg-primary-600" />
       <span className="font-semibold text-sand-800">
-        {confirmedBookings.length} confirmed booking{confirmedBookings.length > 1 ? 's' : ''}
+        {t('owner.confirmedCount', { count: confirmedBookings.length })}
       </span>
       <span className="text-sand-500">/</span>
       <button
         onClick={() => setSection('bookings')}
         className="text-[0.8125rem] font-medium text-primary-700 hover:text-primary-900 transition-colors"
       >
-        View bookings
+        {t('owner.viewBookings')}
       </button>
     </div>
   ) : null;
@@ -347,7 +353,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         <div className="bg-red-50 border border-red-200 text-red-700 text-[0.8125rem] px-4 py-2.5 rounded-subtle mb-5">
           {error}
           <button onClick={() => setError(null)} className="ml-3 font-semibold underline">
-            Dismiss
+            {t('common.dismiss')}
           </button>
         </div>
       )}
@@ -356,17 +362,17 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       {section === 'overview' && (
         <div className="space-y-6">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Fleet Overview
+            {t('owner.fleetOverview')}
           </h1>
 
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Listed" value={vehicles.length} />
-            <MetricTile label="Available" value={availableCount} accent />
+            <MetricTile label={t('owner.listed')} value={vehicles.length} />
+            <MetricTile label={t('owner.available')} value={availableCount} accent />
             <MetricTile
-              label="Rented"
+              label={t('owner.rented')}
               value={rentedCount}
             />
-            <MetricTile label="Revenue" value={`${revenue.toLocaleString()} EGP`} />
+            <MetricTile label={t('owner.revenue')} value={`${revenue.toLocaleString()} ${t('common.egp')}`} />
           </div>
 
           {/* Pending requests preview */}
@@ -374,13 +380,13 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[0.95rem] font-semibold text-sand-900">
-                  Pending Requests
+                  {t('owner.pendingRequests')}
                 </h2>
                 <button
                   onClick={() => setSection('bookings')}
                   className="text-[0.75rem] font-medium text-primary-600 hover:text-primary-800 transition-colors"
                 >
-                  View all
+                  {t('common.viewAll')}
                 </button>
               </div>
               <div className="space-y-2">
@@ -399,13 +405,13 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
           {/* Active rentals */}
           <div>
             <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-3">
-              Active Rentals
+              {t('owner.activeRentals')}
             </h2>
             {loading ? (
               <SkeletonBlock />
             ) : activeRentals.length === 0 ? (
               <div className="border border-sand-200 rounded-soft py-6 text-center text-[0.8125rem] text-sand-500">
-                No active rentals right now.
+                {t('owner.noActiveRentals')}
               </div>
             ) : (
               <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
@@ -428,30 +434,30 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         <div>
           <div className="flex items-center justify-between mb-5">
             <h1 className="text-[1.25rem] font-semibold text-sand-950">
-              My Vehicles
+              {t('owner.myVehicles')}
             </h1>
             <Link
               to="/add-vehicle"
               className="text-[0.8125rem] font-semibold bg-primary-800 text-white px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors duration-150"
             >
-              + Add Vehicle
+              + {t('owner.addVehicle')}
             </Link>
           </div>
 
           {vehicles.length === 0 ? (
             <EmptyState
-              message="You haven't listed any vehicles yet."
-              cta="Add Your First Vehicle"
+              message={t('owner.emptyVehicles')}
+              cta={t('owner.addFirstVehicle')}
               href="/add-vehicle"
             />
           ) : (
             <div className="border border-sand-200 rounded-soft overflow-hidden">
               <div className="hidden md:grid grid-cols-[minmax(0,2fr)_100px_130px_80px_80px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-                <span>Vehicle</span>
-                <span>Status</span>
-                <span>Daily Rate</span>
-                <span>Bookings</span>
-                <span className="text-right">Actions</span>
+                <span>{t('common.vehicle')}</span>
+                <span>{t('common.status')}</span>
+                <span>{t('renter.dailyRate')}</span>
+                <span>{t('owner.bookings')}</span>
+                <span className="text-right">{t('common.actions')}</span>
               </div>
               <div className="divide-y divide-sand-100">
                 {vehicles.map((v) => {
@@ -482,11 +488,11 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                               : 'bg-sand-100 text-sand-600 border border-sand-200'
                           }`}
                         >
-                          {v.isAvailable !== false ? 'Available' : 'Rented'}
+                          {v.isAvailable !== false ? t('status.available') : t('status.rented')}
                         </span>
                       </div>
                       <span className="text-[0.8125rem] text-sand-700 tabular-nums">
-                        {v.pricePerDay?.toLocaleString() || 'Not set'} EGP/day
+                        {v.pricePerDay?.toLocaleString() || t('common.notSet')} {t('common.egp')}/{t('common.day')}
                       </span>
                       <span className="text-[0.8125rem] text-sand-600 tabular-nums">
                         {vBookings.length}
@@ -496,7 +502,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                           onClick={() => deleteVehicle(v._id)}
                           className="text-[0.75rem] font-medium text-red-600 hover:text-red-800 transition-colors"
                         >
-                          Remove
+                          {t('common.remove')}
                         </button>
                       </div>
                     </div>
@@ -514,10 +520,10 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
           <div className="mb-5 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-[1.25rem] font-semibold text-sand-950">
-                Bookings
+                {t('owner.bookings')}
               </h1>
               <p className="mt-1 text-[0.8125rem] text-sand-500">
-                Current, upcoming, and expired rentals for your listed cars.
+                {t('owner.bookingsDescription')}
               </p>
             </div>
           </div>
@@ -526,15 +532,15 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
             <SkeletonBlock />
           ) : myBookings.length === 0 ? (
             <div className="border border-sand-200 rounded-soft py-10 text-center text-[0.8125rem] text-sand-500">
-              No bookings for your vehicles yet.
+              {t('owner.emptyOwnerBookings')}
             </div>
           ) : (
             <div className="space-y-6">
               <section>
-                <h2 className="mb-3 text-[0.95rem] font-semibold text-sand-900">Pending Requests</h2>
+                <h2 className="mb-3 text-[0.95rem] font-semibold text-sand-900">{t('owner.pendingRequests')}</h2>
                 {pendingRequests.length === 0 ? (
                   <div className="border border-sand-200 rounded-soft py-6 text-center text-[0.8125rem] text-sand-500">
-                    No pending requests right now.
+                    {t('owner.noPendingRequests')}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -550,8 +556,8 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                 )}
               </section>
               <BookingGroup
-                title="Active Bookings"
-                empty="No active bookings right now."
+                title={t('owner.activeBookings')}
+                empty={t('owner.noActiveBookings')}
                 bookings={activeRentals}
                 now={now}
                 onAccept={updateStatus}
@@ -559,8 +565,8 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                 onComplete={updateStatus}
               />
               <BookingGroup
-                title="Upcoming Bookings"
-                empty="No upcoming bookings."
+                title={t('owner.upcomingBookings')}
+                empty={t('owner.noUpcomingBookings')}
                 bookings={upcomingBookings}
                 now={now}
                 onAccept={updateStatus}
@@ -568,8 +574,8 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                 onComplete={updateStatus}
               />
               <BookingGroup
-                title="Expired Bookings"
-                empty="No expired bookings."
+                title={t('owner.expiredBookings')}
+                empty={t('owner.noExpiredBookings')}
                 bookings={expiredBookings}
                 now={now}
                 onAccept={updateStatus}
@@ -585,31 +591,31 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       {section === 'earnings' && (
         <div>
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Earnings
+            {t('owner.earnings')}
           </h1>
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200 mb-6">
-            <MetricTile label="Total Revenue" value={`${revenue.toLocaleString()} EGP`} />
-            <MetricTile label="Completed Trips" value={completedBookings.length} />
-            <MetricTile label="Active Rentals" value={activeRentals.length} accent />
+            <MetricTile label={t('owner.totalRevenue')} value={`${revenue.toLocaleString()} ${t('common.egp')}`} />
+            <MetricTile label={t('owner.completedTrips')} value={completedBookings.length} />
+            <MetricTile label={t('owner.activeRentals')} value={activeRentals.length} accent />
           </div>
 
           <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-3">
-            Transaction History
+            {t('owner.transactionHistory')}
           </h2>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_100px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-              <span>Vehicle</span>
-              <span>Renter</span>
-              <span>Date</span>
-              <span className="text-right">Amount</span>
+              <span>{t('common.vehicle')}</span>
+              <span>{t('owner.renter')}</span>
+              <span>{t('owner.date')}</span>
+              <span className="text-right">{t('common.amount')}</span>
             </div>
-            {completedBookings.length === 0 ? (
+            {paidBookings.length === 0 ? (
               <div className="py-10 text-center text-[0.8125rem] text-sand-500">
-                No completed transactions yet.
+                {t('owner.noTransactions')}
               </div>
             ) : (
               <div className="divide-y divide-sand-100">
-                {completedBookings.map((b) => (
+                {paidBookings.map((b) => (
                   <div
                     key={b._id}
                     className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_100px] gap-2 md:gap-4 items-center px-4 py-3"
@@ -618,7 +624,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                       {b.vehicle?.make} {b.vehicle?.model}
                     </span>
                     <span className="text-[0.8125rem] text-sand-600">
-                      <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors">{b.renter?.name || 'User'}</Link>
+                      <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors">{b.renter?.name || t('common.user')}</Link>
                     </span>
                     <span className="text-[0.8125rem] text-sand-600">
                       {b.endDate
@@ -627,10 +633,10 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                             day: 'numeric',
                             year: 'numeric',
                           })
-                        : 'Not set'}
+                        : t('common.notSet')}
                     </span>
                     <span className="text-[0.875rem] font-semibold text-sand-900 md:text-right tabular-nums">
-                      {ownerRentalAmount(b).toLocaleString()} EGP
+                      {ownerRentalAmount(b).toLocaleString()} {t('common.egp')}
                     </span>
                   </div>
                 ))}
@@ -717,10 +723,12 @@ function BookingGroup({ title, empty, bookings, now, onAccept, onDecline, onComp
 }
 
 function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
+  const { t, i18n } = useTranslation('dashboard');
+  const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB';
   const paid = isPaidBooking(b);
   const canDecline = b.status === 'pending' && !paid;
   const canAccept = b.status === 'pending' && !paid;
-  const remaining = getRemainingText(b.endDate, now);
+  const remaining = getRemainingText(b.endDate, now, t);
 
   return (
     <div className="px-4 py-3 hover:bg-sand-100/60 transition-colors duration-100">
@@ -739,32 +747,32 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
               <StatusBadge status={b.status} />
               {paid && (
                 <span className="inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold bg-green-50 text-green-700 border border-green-200">
-                  Paid
+                  {t('status.paid')}
                 </span>
               )}
             </div>
             <p className="mt-1 text-[0.75rem] text-sand-500">
-              Rented by <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors font-medium">{b.renter?.name || 'User'}</Link>
+              {t('owner.rentedBy')} <Link to={`/user/${b.renter?._id}`} className="text-primary-700 hover:text-primary-900 transition-colors font-medium">{b.renter?.name || t('common.user')}</Link>
             </p>
             <div className="mt-3 grid gap-2 text-[0.75rem] sm:grid-cols-2">
               <div className="rounded-subtle bg-sand-100 px-3 py-2">
-                <span className="block font-semibold uppercase tracking-[0.04em] text-sand-500">Start date</span>
-                <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(b.startDate)}</span>
+                <span className="block font-semibold uppercase tracking-[0.04em] text-sand-500">{t('owner.startDate')}</span>
+                <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(b.startDate, locale, t('common.notSet'))}</span>
               </div>
               <div className="rounded-subtle bg-sand-100 px-3 py-2">
-                <span className="block font-semibold uppercase tracking-[0.04em] text-sand-500">End date</span>
-                <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(getRentalEndDate(b.endDate) || b.endDate)}</span>
+                <span className="block font-semibold uppercase tracking-[0.04em] text-sand-500">{t('owner.endDate')}</span>
+                <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(getRentalEndDate(b.endDate) || b.endDate, locale, t('common.notSet'))}</span>
               </div>
             </div>
             <div className="mt-2 rounded-subtle border border-primary-100 bg-primary-50 px-3 py-2 text-[0.78rem] font-semibold tabular-nums text-primary-800">
-              Rental ends in: {remaining}
+              {t('owner.rentalEndsIn', { time: remaining })}
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <span className="text-[0.8125rem] font-semibold tabular-nums text-sand-900">
-            {ownerRentalAmount(b).toLocaleString()} EGP
+            {ownerRentalAmount(b).toLocaleString(locale)} {t('common.egp')}
           </span>
           <PaymentProofLink path={b.payment?.proofUrl} />
           {canAccept && (
@@ -772,7 +780,7 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
               onClick={onAccept}
               className="text-[0.75rem] font-semibold bg-primary-800 text-white px-3.5 py-1.5 rounded-subtle hover:bg-primary-900 transition-colors"
             >
-              Accept
+              {t('common.accept')}
             </button>
           )}
           {canDecline && (
@@ -780,7 +788,7 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
               onClick={onDecline}
               className="text-[0.75rem] font-semibold text-sand-600 bg-sand-100 border border-sand-200 px-3.5 py-1.5 rounded-subtle hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
             >
-              Decline
+              {t('common.decline')}
             </button>
           )}
           {b.status === 'active' && b.renterFinished && (
@@ -788,12 +796,12 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
               onClick={onComplete}
               className="text-[0.75rem] font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-subtle hover:bg-green-100 transition-colors"
             >
-              Confirm Return
+              {t('owner.confirmReturn')}
             </button>
           )}
           {paid && b.status === 'confirmed' && (
             <span className="text-[0.75rem] font-semibold text-sand-600">
-              Auto-confirmed
+              {t('owner.autoConfirmed')}
             </span>
           )}
         </div>

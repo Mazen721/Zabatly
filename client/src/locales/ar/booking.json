@@ -1,0 +1,21 @@
+{
+  "confirmed": "الحجز اتأكّد",
+  "rideReserved": "رحلتك محجوزة",
+  "vehicleMessage": "الدفع اتسجل. المالك يقدر يشوف الحجز وتفاصيل الدفع دلوقتي.",
+  "driverMessage": "السواق هيتواصل معاك قريب. تقدر كمان توصله مباشرة من هنا.",
+  "bookingId": "رقم الحجز",
+  "driverService": "خدمة سواق",
+  "dates": "التواريخ",
+  "paymentMethod": "طريقة الدفع",
+  "status": "الحالة",
+  "total": "الإجمالي",
+  "creditCard": "كارت ائتمان / خصم",
+  "vodafoneCash": "فودافون كاش",
+  "instaPay": "إنستاباي",
+  "driverContact": "تواصل مع السواق",
+  "phoneNotAdded": "رقم الموبايل مش مضاف لسه",
+  "callDriver": "اتصل بالسواق",
+  "paymentProof": "إثبات الدفع",
+  "backToDashboard": "ارجع للوحة التحكم",
+  "viewBookings": "شوف حجوزاتي"
+}

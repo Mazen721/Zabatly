@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
 
@@ -33,11 +34,15 @@ const DashboardShell = ({
   contextStrip,
   user,
   bottomActions = [],
-  returnTarget = { href: '/explore', label: 'Fleet' },
+  returnTarget: propReturnTarget,
   children,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation('common');
+  const isRTL = i18n.language === 'ar';
+
+  const returnTarget = propReturnTarget || { href: '/explore', label: t('nav.fleet') };
 
   const handleLogout = () => {
     localStorage.removeItem('userInfo');
@@ -60,7 +65,7 @@ const DashboardShell = ({
         </Link>
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+      <nav dir={isRTL ? 'rtl' : 'ltr'} className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) =>
           item.type === 'divider' ? (
             <div key={item.id} className="pt-4 pb-2 px-3">
@@ -91,7 +96,7 @@ const DashboardShell = ({
               }`}
             >
               {item.icon}
-              <span className="flex-1 text-left">{item.label}</span>
+              <span className={`flex-1 ${isRTL ? 'text-right' : 'text-left'}`}>{item.label}</span>
               {item.badge != null && item.badge > 0 && (
                 <span className="bg-signal-500 text-primary-950 text-[0.65rem] font-bold leading-none px-1.5 py-0.5 rounded-subtle min-w-[1.25rem] text-center">
                   {item.badge}
@@ -111,7 +116,7 @@ const DashboardShell = ({
             <ProfileAvatar user={user} />
             <span className="min-w-0">
               <span className="block truncate text-[0.8125rem] font-semibold">{user.name}</span>
-              <span className="block truncate text-[0.68rem] text-primary-400">Profile settings</span>
+              <span className="block truncate text-[0.68rem] text-primary-400">{t('nav.profileSettings', 'Profile settings')}</span>
             </span>
           </Link>
         )}
@@ -134,7 +139,7 @@ const DashboardShell = ({
             <path d="M10.667 11.333 14 8l-3.333-3.333" />
             <path d="M14 8H6" />
           </svg>
-          <span>Log out</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </div>
     </>
@@ -143,7 +148,7 @@ const DashboardShell = ({
   return (
     <div className="flex min-h-screen bg-sand-50">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-56 bg-primary-800 flex-col fixed inset-y-0 left-0 z-40">
+      <aside className={`hidden lg:flex w-56 bg-primary-800 flex-col fixed inset-y-0 z-40 ${isRTL ? 'right-0' : 'left-0'}`}>
         {sidebar}
       </aside>
 
@@ -155,15 +160,15 @@ const DashboardShell = ({
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 w-56 bg-primary-800 flex flex-col z-50 lg:hidden transform transition-transform duration-200 ease-out-quart ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 ${isRTL ? 'right-0' : 'left-0'} w-56 bg-primary-800 flex flex-col z-50 lg:hidden transform transition-transform duration-200 ease-out-quart ${
+          mobileOpen ? 'translate-x-0' : isRTL ? 'translate-x-full' : '-translate-x-full'
         }`}
       >
         {sidebar}
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-56 min-w-0">
+      <div className={`flex-1 min-w-0 ${isRTL ? 'lg:mr-56' : 'lg:ml-56'}`}>
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-sand-50 border-b border-sand-200 sticky top-0 z-30">
           <button
@@ -207,11 +212,11 @@ const DashboardShell = ({
               to={returnTarget.href}
               className="mb-4 inline-flex items-center gap-2 rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2 text-[0.8125rem] font-semibold text-sand-700 transition-colors hover:bg-sand-200/70 hover:text-primary-800"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isRTL ? 'scale-x-[-1]' : ''}>
                 <path d="M8.5 3 4.5 7l4 4" />
                 <path d="M5 7h6" />
               </svg>
-              Back to {returnTarget.label}
+              {t('nav.backTo', { target: returnTarget.label })}
             </Link>
           )}
           {children}

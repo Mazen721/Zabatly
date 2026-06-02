@@ -4,6 +4,7 @@ import axios from 'axios';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { useTranslation } from 'react-i18next';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -59,12 +60,6 @@ const isWithinRange = (dateKey, range) => {
   return date >= start && date <= end;
 };
 
-const getBookingStatusLabel = (status) => {
-  if (status === 'completed') return 'Completed';
-  if (status === 'active') return 'Active';
-  return 'Upcoming';
-};
-
 const getRentalEndDate = (value) => {
   if (!value) return null;
   const date = new Date(value);
@@ -85,11 +80,11 @@ const isReviewableBooking = (booking) => {
   return ['completed', 'expired'].includes(booking.status) || Boolean(end && end < new Date());
 };
 
-function AvailabilityStatus({ loading, startDate, endDate, availability }) {
+function AvailabilityStatus({ loading, startDate, endDate, availability, t }) {
   if (!startDate || !endDate) {
     return (
       <div className="rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2 text-[0.78rem] text-sand-500 transition-all duration-200 ease-out-quart">
-        Select dates to check live availability.
+        {t('selectDates')}
       </div>
     );
   }
@@ -97,7 +92,7 @@ function AvailabilityStatus({ loading, startDate, endDate, availability }) {
   if (loading) {
     return (
       <div className="rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2 text-[0.78rem] font-medium text-sand-600 transition-all duration-200 ease-out-quart">
-        Checking availability...
+        {t('checkingAvailability')}
       </div>
     );
   }
@@ -105,7 +100,7 @@ function AvailabilityStatus({ loading, startDate, endDate, availability }) {
   if (availability?.available) {
     return (
       <div className="rounded-subtle border border-green-200 bg-green-50 px-3 py-2 text-[0.78rem] font-semibold text-green-700 transition-all duration-200 ease-out-quart">
-        Vehicle available for selected dates
+        {t('available')}
       </div>
     );
   }
@@ -113,7 +108,7 @@ function AvailabilityStatus({ loading, startDate, endDate, availability }) {
   if (availability?.available === false) {
     return (
       <div className="rounded-subtle border border-red-200 bg-red-50 px-3 py-2 text-[0.78rem] font-semibold text-red-700 transition-all duration-200 ease-out-quart">
-        {availability.message || 'This vehicle is already reserved for those dates.'}
+        {availability.message || t('chooseDatesAvailable')}
       </div>
     );
   }
@@ -121,14 +116,14 @@ function AvailabilityStatus({ loading, startDate, endDate, availability }) {
   return null;
 }
 
-function ReservedDateCalendar({ reservedRanges, startDate, endDate, onPickDate }) {
+function ReservedDateCalendar({ reservedRanges, startDate, endDate, onPickDate, t }) {
   const days = Array.from({ length: 35 }, (_, index) => addDays(new Date(), index));
 
   return (
     <div className="rounded-soft border border-sand-200 bg-sand-100 p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">Reserved Dates</span>
-        <span className="text-[0.68rem] text-sand-500">Next 35 days</span>
+        <span className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">{t('reservedDates')}</span>
+        <span className="text-[0.68rem] text-sand-500">{t('next35days')}</span>
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((day) => {
@@ -152,7 +147,7 @@ function ReservedDateCalendar({ reservedRanges, startDate, endDate, onPickDate }
                       ? 'bg-primary-50 text-primary-800'
                       : 'bg-sand-50 text-sand-700 hover:bg-sand-200/70'
               }`}
-              title={reserved ? 'Reserved' : 'Available'}
+              title={reserved ? t('reserved') : ''}
             >
               {day.getDate()}
             </button>
@@ -160,14 +155,15 @@ function ReservedDateCalendar({ reservedRanges, startDate, endDate, onPickDate }
         })}
       </div>
       <div className="mt-2 flex items-center gap-3 text-[0.68rem] text-sand-500">
-        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-50 ring-1 ring-red-200" /> Reserved</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-sand-50 ring-1 ring-sand-200" /> Available</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-50 ring-1 ring-red-200" /> {t('reserved')}</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-sand-50 ring-1 ring-sand-200" /> {t('common:vehicle.available')}</span>
       </div>
     </div>
   );
 }
 
 export default function VehicleDetails() {
+  const { t } = useTranslation('vehicle');
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -197,6 +193,8 @@ export default function VehicleDetails() {
   const [completedBookingId, setCompletedBookingId] = useState(null);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState('');
+
+  const ratingLabels = [t('poor'), t('fair'), t('good'), t('veryGood'), t('excellent')];
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -241,7 +239,7 @@ export default function VehicleDetails() {
       });
       setSaved(Boolean(data.saved));
     } catch {
-      setBookingError('Could not update saved cars. Try again.');
+      setBookingError(t('savedError'));
     }
   };
 
@@ -303,7 +301,7 @@ export default function VehicleDetails() {
       setHasReviewed(true);
       setReviewRating(0);
       setReviewComment('');
-      setReviewSuccess('Review submitted! Thank you.');
+      setReviewSuccess(t('reviewSuccess'));
       setTimeout(() => setReviewSuccess(''), 4000);
     } catch (err) {
       setReviewSuccess('');
@@ -334,7 +332,7 @@ export default function VehicleDetails() {
         if (!ignore) {
           setAvailability({
             available: false,
-            message: 'Could not check availability. Try again.',
+            message: t('checkingAvailability'),
           });
         }
       } finally {
@@ -364,7 +362,7 @@ export default function VehicleDetails() {
     setBookingError('');
 
     if (vehicle.owner?._id === userInfo._id || vehicle.owner === userInfo._id) {
-      setBookingError("You can't book your own listed car.");
+      setBookingError(t('cantBookOwn'));
       return;
     }
 
@@ -374,10 +372,10 @@ export default function VehicleDetails() {
     if (!needsDriver && (!userInfo.driving_license || !userInfo.driving_license.is_verified)) {
       return navigate('/verify-identity');
     }
-    if (!startDate || !endDate) { setBookingError('Please select your travel dates.'); return; }
-    if (new Date(startDate) > new Date(endDate)) { setBookingError('Return date must be after pickup date.'); return; }
-    if (availability?.available !== true) { setBookingError('Choose dates that are available before payment.'); return; }
-    if (needsDriver && !route) { setBookingError('Please provide a route for the driver.'); return; }
+    if (!startDate || !endDate) { setBookingError(t('selectTravelDates')); return; }
+    if (new Date(startDate) > new Date(endDate)) { setBookingError(t('returnAfterPickup')); return; }
+    if (availability?.available !== true) { setBookingError(t('chooseDatesAvailable')); return; }
+    if (needsDriver && !route) { setBookingError(t('provideRoute')); return; }
 
     const days = Math.round((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
     const totalPrice = vehicle.price_per_day * days + (needsDriver ? vehicle.driver_cost * days : 0);
@@ -427,8 +425,8 @@ export default function VehicleDetails() {
     return (
       <div className="min-h-screen bg-sand-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[0.95rem] font-semibold text-sand-700 mb-2">Vehicle not found.</p>
-          <Link to="/explore" className="text-primary-700 font-semibold hover:text-primary-800 text-[0.8rem]">Back to fleet</Link>
+          <p className="text-[0.95rem] font-semibold text-sand-700 mb-2">{t('notFound')}</p>
+          <Link to="/explore" className="text-primary-700 font-semibold hover:text-primary-800 text-[0.8rem]">{t('backToFleet')}</Link>
         </div>
       </div>
     );
@@ -439,10 +437,10 @@ export default function VehicleDetails() {
   const isOwnVehicle = userInfo && (vehicle.owner?._id === userInfo._id || vehicle.owner === userInfo._id);
 
   const specs = [
-    { label: 'Transmission', value: vehicle.transmission === 'automatic' ? 'Automatic' : 'Manual' },
-    { label: 'Seats', value: `${vehicle.capacity} passengers` },
-    { label: 'Fuel', value: vehicle.fuel ? vehicle.fuel.charAt(0).toUpperCase() + vehicle.fuel.slice(1) : 'Petrol' },
-    { label: 'AC', value: vehicle.ac ? 'Yes' : 'No' },
+    { label: t('transmission'), value: vehicle.transmission === 'automatic' ? t('automatic') : t('manual') },
+    { label: t('seats'), value: t('passengers', { count: vehicle.capacity }) },
+    { label: t('fuel'), value: vehicle.fuel ? vehicle.fuel.charAt(0).toUpperCase() + vehicle.fuel.slice(1) : t('petrol') },
+    { label: t('ac'), value: vehicle.ac ? t('yes') : t('no') },
   ];
 
   return (
@@ -451,8 +449,8 @@ export default function VehicleDetails() {
 
         {/* Back */}
         <Link to="/explore" className="inline-flex items-center gap-1 text-[0.8rem] text-sand-500 font-medium hover:text-primary-700 transition-colors mb-5">
-          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
-          Back to fleet
+          <svg className="w-4 h-4 rtl:scale-x-[-1]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
+          {t('backToFleet')}
         </Link>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -466,25 +464,25 @@ export default function VehicleDetails() {
                 {heroSrc ? (
                   <img src={heroSrc} alt={`${vehicle.make} ${vehicle.model}`} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-sand-400">Photo unavailable</div>
+                  <div className="w-full h-full flex items-center justify-center text-sand-400">{t('photoUnavailable')}</div>
                 )}
                 {vehicle.images?.length > 1 && (
                   <>
                     <button
                       onClick={() => setActiveImg((i) => (i === 0 ? vehicle.images.length - 1 : i - 1))}
-                      aria-label="Previous image"
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-sand-50/90 backdrop-blur-sm flex items-center justify-center text-sand-700 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-200 hover:bg-sand-50 z-10"
+                      aria-label={t('previousImage')}
+                      className="absolute left-3 rtl:left-auto rtl:right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-sand-50/90 backdrop-blur-sm flex items-center justify-center text-sand-700 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-200 hover:bg-sand-50 z-10"
                     >
-                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
+                      <svg className="w-4 h-4 rtl:scale-x-[-1]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10 3L5 8l5 5" /></svg>
                     </button>
                     <button
                       onClick={() => setActiveImg((i) => (i === vehicle.images.length - 1 ? 0 : i + 1))}
-                      aria-label="Next image"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-sand-50/90 backdrop-blur-sm flex items-center justify-center text-sand-700 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-200 hover:bg-sand-50 z-10"
+                      aria-label={t('nextImage')}
+                      className="absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-sand-50/90 backdrop-blur-sm flex items-center justify-center text-sand-700 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-200 hover:bg-sand-50 z-10"
                     >
-                      <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
+                      <svg className="w-4 h-4 rtl:scale-x-[-1]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 3l5 5-5 5" /></svg>
                     </button>
-                    <div className="absolute bottom-3 right-3 bg-sand-950/60 text-sand-50 text-[0.7rem] font-medium px-2 py-0.5 rounded z-10">
+                    <div className="absolute bottom-3 right-3 rtl:right-auto rtl:left-3 bg-sand-950/60 text-sand-50 text-[0.7rem] font-medium px-2 py-0.5 rounded z-10">
                       {activeImg + 1} / {vehicle.images.length}
                     </div>
                   </>
@@ -518,8 +516,8 @@ export default function VehicleDetails() {
                         ? 'border-primary-800 bg-primary-800 text-white'
                         : 'border-sand-200 bg-sand-100 text-sand-700 hover:text-primary-800'
                     }`}
-                    aria-label={saved ? 'Remove from saved cars' : 'Save car'}
-                    title={saved ? 'Remove from saved cars' : 'Save car'}
+                    aria-label={saved ? t('removeSaved') : t('saveCar')}
+                    title={saved ? t('removeSaved') : t('saveCar')}
                   >
                     <svg className="h-4 w-4" viewBox="0 0 16 16" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M8 13.5s-5.5-3.5-5.5-7A3.25 3.25 0 0 1 8 4a3.25 3.25 0 0 1 5.5 2.5c0 3.5-5.5 7-5.5 7z" />
@@ -529,7 +527,7 @@ export default function VehicleDetails() {
                 </div>
               </div>
               <p className="text-[0.85rem] text-sand-500">
-                {vehicle.year} &middot; Listed by <span className="text-sand-700 font-medium">{vehicle.owner?.name || 'Zabatly Partner'}</span>
+                {vehicle.year} &middot; {t('listedBy')} <span className="text-sand-700 font-medium">{vehicle.owner?.name || t('zabatlyPartner')}</span>
               </p>
               {vehicle.rating > 0 && (
                 <div className="mt-2">
@@ -551,7 +549,7 @@ export default function VehicleDetails() {
             {/* Description */}
             {vehicle.description && (
               <div>
-                <h2 className="text-[1.1rem] font-semibold text-sand-950 mb-3">About this vehicle</h2>
+                <h2 className="text-[1.1rem] font-semibold text-sand-950 mb-3">{t('aboutVehicle')}</h2>
                 <p className="text-[0.85rem] text-sand-600 leading-relaxed whitespace-pre-line max-w-prose">{vehicle.description}</p>
               </div>
             )}
@@ -572,26 +570,26 @@ export default function VehicleDetails() {
                 <div className="flex items-center gap-2">
                   <span className="text-[0.9rem] font-semibold text-sand-950">{vehicle.owner?.name}</span>
                   {vehicle.owner?.is_verified && (
-                    <span className="text-[0.65rem] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded">Verified</span>
+                    <span className="text-[0.65rem] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded">{t('verified')}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  {vehicle.owner?.rating ? <StarRating rating={vehicle.owner.rating} count={vehicle.owner.numReviews} /> : <span className="text-[0.75rem] text-sand-400">New on Zabatly</span>}
+                  {vehicle.owner?.rating ? <StarRating rating={vehicle.owner.rating} count={vehicle.owner.numReviews} /> : <span className="text-[0.75rem] text-sand-400">{t('newOnZabatly')}</span>}
                 </div>
               </div>
-              <svg className="h-4 w-4 text-sand-400" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="h-4 w-4 text-sand-400 rtl:scale-x-[-1]" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M6 3l5 5-5 5" />
               </svg>
             </Link>
 
             {/* Map */}
             <div>
-              <h2 className="text-[1.1rem] font-semibold text-sand-950 mb-1">Pick-up location</h2>
+              <h2 className="text-[1.1rem] font-semibold text-sand-950 mb-1">{t('pickupLocation')}</h2>
               <p className="text-[0.85rem] font-medium text-sand-700">{getVehicleAreaLabel(vehicle)}</p>
               {getVehicleExactAddress(vehicle) ? (
                 <p className="text-[0.8rem] text-sand-500 mb-3">{getVehicleExactAddress(vehicle)}</p>
               ) : (
-                <p className="text-[0.8rem] text-sand-500 mb-3">{vehicle.address || 'Alexandria, Egypt'}</p>
+                <p className="text-[0.8rem] text-sand-500 mb-3">{vehicle.address || t('locationNotSet')}</p>
               )}
               <div className="h-64 w-full rounded-soft overflow-hidden border border-sand-200 relative z-0">
                 <MapContainer center={mapCenter} zoom={15} scrollWheelZoom={false} className="h-full w-full">
@@ -604,7 +602,7 @@ export default function VehicleDetails() {
             {/* Reviews */}
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[1.1rem] font-semibold text-sand-950">Reviews</h2>
+                <h2 className="text-[1.1rem] font-semibold text-sand-950">{t('reviews')}</h2>
                 {vehicle.rating > 0 && <StarRating rating={vehicle.rating} count={vehicle.numReviews} />}
               </div>
 
@@ -618,7 +616,7 @@ export default function VehicleDetails() {
               {/* Write a review form */}
               {canReview && !hasReviewed && (
                 <div className="mb-6 rounded-soft border border-sand-200 bg-sand-100/50 p-4 space-y-3">
-                  <p className="text-[0.85rem] font-semibold text-sand-900">Write a Review</p>
+                  <p className="text-[0.85rem] font-semibold text-sand-900">{t('writeReview')}</p>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((s) => (
                       <button
@@ -641,15 +639,15 @@ export default function VehicleDetails() {
                       </button>
                     ))}
                     {reviewRating > 0 && (
-                      <span className="ml-2 text-[0.78rem] font-medium text-sand-500 self-center">
-                        {reviewRating === 1 ? 'Poor' : reviewRating === 2 ? 'Fair' : reviewRating === 3 ? 'Good' : reviewRating === 4 ? 'Very Good' : 'Excellent'}
+                      <span className="ml-2 rtl:ml-0 rtl:mr-2 text-[0.78rem] font-medium text-sand-500 self-center">
+                        {ratingLabels[reviewRating - 1]}
                       </span>
                     )}
                   </div>
                   <textarea
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
-                    placeholder="Share your experience (optional)"
+                    placeholder={t('shareExperience')}
                     className="w-full bg-sand-50 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 resize-none h-20"
                   />
                   <button
@@ -661,19 +659,19 @@ export default function VehicleDetails() {
                         : 'bg-sand-200 text-sand-500 cursor-not-allowed'
                     }`}
                   >
-                    {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                    {reviewSubmitting ? t('submittingReview') : t('submitReview')}
                   </button>
                 </div>
               )}
 
               {hasReviewed && !reviewSuccess && (
                 <div className="mb-4 rounded-subtle bg-sand-100 px-3 py-2 text-[0.78rem] text-sand-500">
-                  You've already reviewed this vehicle.
+                  {t('alreadyReviewed')}
                 </div>
               )}
 
               {reviews.length === 0 ? (
-                <p className="text-[0.85rem] text-sand-400 py-6">No reviews yet. Be the first to review this {vehicle.make}.</p>
+                <p className="text-[0.85rem] text-sand-400 py-6">{t('noReviews', { make: vehicle.make })}</p>
               ) : (
                 <div className="space-y-4">
                   {reviews.map((r) => (
@@ -694,7 +692,7 @@ export default function VehicleDetails() {
                           </div>
                         </div>
                       </div>
-                      <p className="text-[0.8rem] text-sand-600 leading-relaxed pl-11">{r.comment}</p>
+                      <p className="text-[0.8rem] text-sand-600 leading-relaxed pl-11 rtl:pl-0 rtl:pr-11">{r.comment}</p>
                     </div>
                   ))}
                 </div>
@@ -709,17 +707,17 @@ export default function VehicleDetails() {
               {/* Price */}
               <div>
                 <span className="text-[1.5rem] font-bold text-primary-800">{vehicle.price_per_day}</span>
-                <span className="text-[0.8rem] text-sand-500 ml-1">EGP / day</span>
+                <span className="text-[0.8rem] text-sand-500 ml-1 rtl:ml-0 rtl:mr-1">{t('egpPerDay')}</span>
               </div>
 
               {/* Dates */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label htmlFor="vd-start" className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Pick-up</label>
+                  <label htmlFor="vd-start" className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">{t('pickup')}</label>
                   <input id="vd-start" type="date" min={toDateKey(new Date())} value={startDate} onChange={(e) => { setStartDate(e.target.value); setBookingError(''); }} className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-all duration-150" />
                 </div>
                 <div>
-                  <label htmlFor="vd-end" className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Return</label>
+                  <label htmlFor="vd-end" className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">{t('return')}</label>
                   <input id="vd-end" type="date" min={startDate || toDateKey(new Date())} value={endDate} onChange={(e) => { setEndDate(e.target.value); setBookingError(''); }} className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-all duration-150" />
                 </div>
               </div>
@@ -729,6 +727,7 @@ export default function VehicleDetails() {
                 startDate={startDate}
                 endDate={endDate}
                 availability={availability}
+                t={t}
               />
 
               <ReservedDateCalendar
@@ -736,6 +735,7 @@ export default function VehicleDetails() {
                 startDate={startDate}
                 endDate={endDate}
                 onPickDate={pickCalendarDate}
+                t={t}
               />
 
               {/* Driver option */}
@@ -743,16 +743,16 @@ export default function VehicleDetails() {
                 <div className="bg-sand-100 rounded-subtle p-3.5">
                   <label className="flex items-center gap-2.5 cursor-pointer">
                     <input type="checkbox" checked={needsDriver} onChange={(e) => setNeedsDriver(e.target.checked)} className="w-4 h-4 rounded border-sand-300 text-primary-800 focus:ring-primary-600 accent-primary-800" />
-                    <span className="text-[0.85rem] font-semibold text-sand-800">Add a driver</span>
+                    <span className="text-[0.85rem] font-semibold text-sand-800">{t('addDriver')}</span>
                   </label>
-                  <p className="text-[0.7rem] text-sand-500 mt-1 ml-6.5">+{vehicle.driver_cost} EGP per day</p>
+                  <p className="text-[0.7rem] text-sand-500 mt-1 ml-6.5 rtl:ml-0 rtl:mr-6.5">{t('driverCostPerDay', { cost: vehicle.driver_cost })}</p>
 
                   {needsDriver && (
                     <div className="mt-3">
-                      <label htmlFor="vd-route" className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">Trip route</label>
+                      <label htmlFor="vd-route" className="block text-[0.7rem] font-medium text-sand-500 uppercase tracking-wide mb-1">{t('tripRoute')}</label>
                       <textarea
                         id="vd-route"
-                        placeholder="Where are you going?"
+                        placeholder={t('whereGoing')}
                         value={route}
                         onChange={(e) => setRoute(e.target.value)}
                         className="w-full bg-sand-50 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-3 py-2 text-[0.8rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 resize-none h-20"
@@ -766,17 +766,17 @@ export default function VehicleDetails() {
               {days > 0 && (
                 <div className="space-y-1.5 pt-2 border-t border-sand-200">
                   <div className="flex justify-between text-[0.8rem]">
-                    <span className="text-sand-500">{vehicle.price_per_day} EGP x {days} {days === 1 ? 'day' : 'days'}</span>
+                    <span className="text-sand-500">{vehicle.price_per_day} EGP x {days} {days === 1 ? t('day') : t('days')}</span>
                     <span className="text-sand-800 font-medium">{basePrice} EGP</span>
                   </div>
                   {needsDriver && (
                     <div className="flex justify-between text-[0.8rem]">
-                      <span className="text-sand-500">Driver fee</span>
+                      <span className="text-sand-500">{t('driverFee')}</span>
                       <span className="text-sand-800 font-medium">{driverFee} EGP</span>
                     </div>
                   )}
                   <div className="flex justify-between text-[0.85rem] font-bold pt-1.5 border-t border-sand-200">
-                    <span className="text-sand-950">Total</span>
+                    <span className="text-sand-950">{t('total')}</span>
                     <span className="text-primary-800">{basePrice + driverFee} EGP</span>
                   </div>
                 </div>
@@ -795,21 +795,21 @@ export default function VehicleDetails() {
                   disabled
                   className="w-full cursor-not-allowed rounded-subtle bg-sand-200 py-3 text-[0.85rem] font-semibold text-sand-500"
                 >
-                  Your own listing
+                  {t('ownListing')}
                 </button>
               ) : userInfo?.kyc_status !== 'verified' ? (
                 <button
                   onClick={() => navigate('/verify-identity')}
                   className="w-full bg-signal-500 text-primary-950 py-3 rounded-subtle text-[0.85rem] font-semibold hover:bg-signal-600 transition-colors"
                 >
-                  Verify identity to rent
+                  {t('verifyIdentity')}
                 </button>
               ) : !needsDriver && (!userInfo.driving_license || !userInfo.driving_license.is_verified) ? (
                 <button
                   onClick={() => navigate('/verify-identity')}
                   className="w-full bg-signal-500 text-primary-950 py-3 rounded-subtle text-[0.85rem] font-semibold hover:bg-signal-600 transition-colors"
                 >
-                  Verify license to self-drive
+                  {t('verifyLicense')}
                 </button>
               ) : (
                 <button
@@ -821,11 +821,11 @@ export default function VehicleDetails() {
                       : 'bg-sand-200 text-sand-500 cursor-not-allowed'
                   }`}
                 >
-                  {availabilityLoading ? 'Checking dates...' : 'Confirm Booking'}
+                  {availabilityLoading ? t('checkingDates') : t('confirmBooking')}
                 </button>
               )}
 
-              <p className="text-center text-[0.7rem] text-sand-400">Next step: secure payment.</p>
+              <p className="text-center text-[0.7rem] text-sand-400">{t('nextStepPayment')}</p>
             </div>
           </div>
         </div>

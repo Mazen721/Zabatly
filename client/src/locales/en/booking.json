@@ -1,0 +1,21 @@
+{
+  "confirmed": "Booking confirmed",
+  "rideReserved": "Your ride is reserved",
+  "vehicleMessage": "Payment is marked as received. The owner can now see the reservation and payment details.",
+  "driverMessage": "Your driver will contact you shortly. You can also reach them directly from here.",
+  "bookingId": "Booking ID",
+  "driverService": "Driver service",
+  "dates": "Dates",
+  "paymentMethod": "Payment Method",
+  "status": "Status",
+  "total": "Total",
+  "creditCard": "Credit / Debit Card",
+  "vodafoneCash": "Vodafone Cash",
+  "instaPay": "InstaPay",
+  "driverContact": "Driver contact",
+  "phoneNotAdded": "Phone number not added yet",
+  "callDriver": "Call driver",
+  "paymentProof": "Payment Proof",
+  "backToDashboard": "Back to Dashboard",
+  "viewBookings": "View My Bookings"
+}

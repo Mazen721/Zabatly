@@ -276,7 +276,7 @@ export function getVehicleAreaLabel(vehicle) {
   if (vehicle?.governorate && vehicle?.city) {
     return `${vehicle.governorate}, ${vehicle.city}`;
   }
-  return vehicle?.address || 'Alexandria';
+  return vehicle?.address || 'Location not set';
 }
 
 export function getVehicleExactAddress(vehicle) {

@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // Pages
 import Landing from './pages/Landing'; 
@@ -17,8 +18,7 @@ import AIAssistant from './pages/AIAssistant';
 import PaymentPage from './pages/PaymentPage';
 import BookingSuccess from './pages/BookingSuccess';
 import UserPublicProfile from './pages/UserPublicProfile';
-
-const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 function getProfilePictureUrl(path) {
   if (!path) return null;
@@ -29,6 +29,7 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation('common');
 
   useEffect(() => {
     const storedUser = localStorage.getItem('userInfo');
@@ -48,7 +49,7 @@ const Navbar = () => {
   const dashboardTarget = user?.role === 'admin' ? '/admin' : '/dashboard';
   const dashboardState =
     location.pathname === '/explore'
-      ? { from: '/explore', label: 'Fleet' }
+      ? { from: '/explore' }
       : undefined;
   const profilePicture = getProfilePictureUrl(user?.profilePicture);
 
@@ -57,20 +58,20 @@ const Navbar = () => {
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <span className="text-[1.35rem] font-extrabold text-primary-800 tracking-tight">Zabatly</span>
-          <span className="text-[1.35rem] font-bold text-signal-500" style={{ fontFamily: ARABIC_FONT }}>زبطلي</span>
+          <span className="text-[1.35rem] font-bold text-signal-500 font-arabic">زبطلي</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-7">
-          <Link to="/explore" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">Browse Cars</Link>
-          <Link to="/drivers" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">Drivers</Link>
-          <Link to="/ai-assistant" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">AI Assistant</Link>
+          <Link to="/explore" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{t('nav.browseCars')}</Link>
+          <Link to="/drivers" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{t('nav.drivers')}</Link>
+          <Link to="/ai-assistant" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{t('nav.aiAssistant')}</Link>
           {user && (
             <Link
               to={dashboardTarget}
               state={dashboardState}
               className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors"
             >
-              {user.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
+              {user.role === 'admin' ? t('nav.adminPanel') : t('nav.dashboard')}
             </Link>
           )}
         </div>
@@ -80,7 +81,7 @@ const Navbar = () => {
             <>
               {user.role === 'agency' && (
                 <Link to="/add-vehicle" className="hidden md:flex items-center gap-1 bg-signal-500 text-primary-950 text-[0.82rem] font-semibold px-4 py-2 rounded-subtle hover:bg-signal-600 transition-colors duration-200">
-                  + List Vehicle
+                  {t('nav.listVehicle')}
                 </Link>
               )}
               <Link to="/profile" className="flex items-center gap-1.5 text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors" aria-label="Open profile settings">
@@ -100,15 +101,16 @@ const Navbar = () => {
                 onClick={handleLogout}
                 className="text-[0.82rem] font-medium text-sand-500 hover:text-red-600 transition-colors"
               >
-                Log out
+                {t('nav.logout')}
               </button>
             </>
           ) : (
             <Link to="/login" className="flex items-center gap-1.5 bg-primary-800 text-white text-[0.82rem] font-semibold px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors duration-200">
-              Log in
+              {t('nav.login')}
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="5" r="3" /><path d="M2 14c0-3.3 2.7-5 6-5s6 1.7 6 5" /></svg>
             </Link>
           )}
+          <LanguageSwitcher />
         </div>
       </div>
     </nav>
@@ -117,6 +119,7 @@ const Navbar = () => {
 
 function AppShell() {
   const location = useLocation();
+  const { t } = useTranslation('common');
   const isLanding = location.pathname === '/';
   const isAuth = location.pathname === '/login' || location.pathname === '/register';
   const isDashboard = ['/dashboard', '/admin', '/profile', '/add-vehicle'].includes(location.pathname);
@@ -152,9 +155,9 @@ function AppShell() {
 
           <Route path="*" element={
             <div className="text-center mt-32 p-10 bg-sand-50 max-w-lg mx-auto rounded-soft border border-sand-200">
-              <h2 className="text-3xl font-bold mb-4 text-sand-950">Page not found</h2>
-              <p className="text-sand-500 mb-8 leading-relaxed">This road doesn't go anywhere. Let's get you back on track.</p>
-              <Link to="/" className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-subtle font-semibold hover:bg-primary-700 transition-colors">Back to Zabatly</Link>
+              <h2 className="text-3xl font-bold mb-4 text-sand-950">{t('notFound.title')}</h2>
+              <p className="text-sand-500 mb-8 leading-relaxed">{t('notFound.message')}</p>
+              <Link to="/" className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-subtle font-semibold hover:bg-primary-700 transition-colors">{t('notFound.backHome')}</Link>
             </div>
           } />
         </Routes>

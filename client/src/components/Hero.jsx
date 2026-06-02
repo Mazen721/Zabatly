@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
 
 const Hero = () => {
+  const { t } = useTranslation('ai');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null); // Stores the AI response
@@ -24,7 +26,7 @@ const Hero = () => {
       setAiResult(data);
     } catch (error) {
       console.error("AI Error:", error);
-      alert("Something went wrong with the AI planner.");
+      alert(t('aiError'));
     } finally {
       setLoading(false);
     }
@@ -38,17 +40,17 @@ const Hero = () => {
       {/* Main Content */}
       <div className="relative z-10 text-center px-4 max-w-4xl mx-auto mt-20">
         <h1 className="text-4xl md:text-6xl font-bold mb-4">
-          Smart Mobility for Everyone 🚌
+          {t('heroTitle')}
         </h1>
         <p className="text-xl mb-8 text-gray-200">
-          Tell our AI your plan, and we'll find the perfect fleet for you.
+          {t('heroDescription')}
         </p>
 
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="flex bg-white rounded-full overflow-hidden p-1 shadow-lg mb-10">
           <input 
             type="text" 
-            placeholder="e.g., 'I need a bus for 18 people to Dahab'"
+            placeholder={t('heroPlaceholder')}
             className="flex-grow px-6 py-4 text-gray-800 outline-none text-lg"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -58,7 +60,7 @@ const Hero = () => {
             disabled={loading}
             className={`${loading ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white px-8 py-3 rounded-full font-bold transition flex items-center gap-2`}
           >
-            {loading ? 'Thinking...' : 'Plan Trip 🤖'}
+            {loading ? t('thinking') : t('planTrip')}
           </button>
         </form>
 
@@ -68,7 +70,7 @@ const Hero = () => {
             <div className="flex items-start gap-4">
               <div className="bg-blue-100 p-3 rounded-full text-2xl">🤖</div>
               <div>
-                <h3 className="text-xl font-bold text-blue-900 mb-2">AI Recommendation</h3>
+                <h3 className="text-xl font-bold text-blue-900 mb-2">{t('recommendation')}</h3>
                 <p className="text-lg leading-relaxed mb-4">{aiResult.reply}</p>
                 
                 {/* Savings Tip Badge */}
@@ -83,7 +85,7 @@ const Hero = () => {
             {/* Suggested Vehicles Grid */}
             {aiResult.vehicles.length > 0 && (
               <div className="mt-6 border-t pt-6">
-                <h4 className="font-bold text-gray-600 mb-4">Recommended Vehicles:</h4>
+                <h4 className="font-bold text-gray-600 mb-4">{t('recommendedVehicles')}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {aiResult.vehicles.map((car) => (
                     <div key={car._id} className="border rounded-lg p-3 flex gap-3 hover:bg-gray-50 transition">
@@ -96,8 +98,8 @@ const Hero = () => {
                       {/* Car Info */}
                       <div>
                         <h5 className="font-bold">{car.make} {car.model}</h5>
-                        <p className="text-sm text-gray-500">{car.type} • {car.capacity} Seats</p>
-                        <p className="text-blue-600 font-bold mt-1">{car.price_per_day} EGP <span className="text-xs font-normal text-gray-400">/day</span></p>
+                        <p className="text-sm text-gray-500">{car.type} • {car.capacity} {t('seats')}</p>
+                        <p className="text-blue-600 font-bold mt-1">{car.price_per_day} EGP <span className="text-xs font-normal text-gray-400">{t('perDay')}</span></p>
                       </div>
                     </div>
                   ))}

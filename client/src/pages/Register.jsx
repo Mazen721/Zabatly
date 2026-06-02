@@ -2,14 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { API } from '../config/api';
-
-const ARABIC_FONT = "'Cairo', 'system-ui', sans-serif";
-
-const ROLES = [
-  { value: 'user', label: 'Renter', desc: 'I want to rent a car' },
-  { value: 'agency', label: 'Agency / Owner', desc: 'I have cars to list' },
-  { value: 'driver', label: 'Freelance Driver', desc: 'I want to drive for others' },
-];
+import { useTranslation } from 'react-i18next';
 
 const passwordChecks = (value) => ({
   length: value.length >= 8,
@@ -17,20 +10,8 @@ const passwordChecks = (value) => ({
   special: /[^A-Za-z0-9]/.test(value),
 });
 
-const passwordStrength = (value) => {
-  const score = Object.values(passwordChecks(value)).filter(Boolean).length;
-  if (score >= 3) return { label: 'Strong', className: 'text-green-700' };
-  if (score >= 2) return { label: 'Medium', className: 'text-signal-700' };
-  return { label: 'Weak', className: 'text-red-700' };
-};
-
-const PASSWORD_RULES = [
-  { key: 'length', label: 'At least 8 characters' },
-  { key: 'upper', label: 'At least 1 uppercase letter' },
-  { key: 'special', label: 'At least 1 symbol' },
-];
-
 export default function Register() {
+  const { t } = useTranslation('auth');
   const [step, setStep] = useState('credentials');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -63,9 +44,29 @@ export default function Register() {
   const emailRef = useRef(null);
   const navigate = useNavigate();
   const checks = passwordChecks(password);
+
+  const passwordStrength = (value) => {
+    const score = Object.values(passwordChecks(value)).filter(Boolean).length;
+    if (score >= 3) return { label: t('register.strong'), className: 'text-green-700' };
+    if (score >= 2) return { label: t('register.medium'), className: 'text-signal-700' };
+    return { label: t('register.weak'), className: 'text-red-700' };
+  };
+
   const strength = passwordStrength(password);
   const passwordsMatch = password && confirmPassword && password === confirmPassword;
   const passwordReady = Object.values(checks).every(Boolean) && passwordsMatch;
+
+  const PASSWORD_RULES = [
+    { key: 'length', label: t('register.rule8chars') },
+    { key: 'upper', label: t('register.rule1upper') },
+    { key: 'special', label: t('register.rule1symbol') },
+  ];
+
+  const ROLES = [
+    { value: 'user', label: t('register.renter'), desc: t('register.renterDesc') },
+    { value: 'agency', label: t('register.agencyOwner'), desc: t('register.agencyDesc') },
+    { value: 'driver', label: t('register.freelanceDriver'), desc: t('register.driverDesc') },
+  ];
 
   useEffect(() => {
     emailRef.current?.focus();
@@ -75,11 +76,11 @@ export default function Register() {
     e.preventDefault();
     setError('');
     if (!Object.values(checks).every(Boolean)) {
-      setError('Password must be 8+ characters and include uppercase and symbol.');
+      setError(t('register.passwordError'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('register.passwordMismatch'));
       return;
     }
     if (step === 'credentials') {
@@ -88,7 +89,7 @@ export default function Register() {
       return;
     }
     if (!name.trim()) {
-      setError('Add your full name.');
+      setError(t('register.nameRequired'));
       return;
     }
     setLoading(true);
@@ -132,63 +133,33 @@ export default function Register() {
       localStorage.setItem('userInfo', JSON.stringify(data));
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || t('register.registrationFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-sand-50">
-      {/* Left: Brand Image */}
-      <div className="hidden lg:block lg:w-1/2 relative overflow-hidden">
-        <img
-          src="/Zabatlyimage.png"
-          alt="Young Egyptians by their car in Cairo"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary-950/80 via-primary-950/30 to-transparent" />
-        <div className="absolute bottom-10 left-10 right-10 z-10">
-          <Link to="/" className="flex items-center gap-2 mb-6">
-            <span className="text-3xl font-extrabold text-white">Zabatly</span>
-            <span className="text-3xl font-bold text-signal-500" style={{ fontFamily: ARABIC_FONT }}>زبطلي</span>
-          </Link>
-          <p className="text-primary-200 text-lg max-w-md leading-relaxed">
-            Join the community. Rent cars, list vehicles, or drive for others.
-          </p>
-        </div>
-        <span
-          className="absolute top-8 right-8 text-[7rem] font-black text-signal-500/25 leading-none select-none pointer-events-none"
-          aria-hidden="true"
-          style={{ fontFamily: ARABIC_FONT }}
-        >
-          زبطلى
-        </span>
-      </div>
+    <main className="min-h-screen bg-sand-50 px-5 py-10 sm:px-6 sm:py-14 lg:py-16">
+      <div className="mx-auto w-full max-w-2xl">
+        <Link to="/" className="mx-auto mb-12 flex w-fit items-center gap-2 sm:mb-16" aria-label="Zabatly home">
+          <span className="text-3xl font-extrabold tracking-tight text-primary-800">Zabatly</span>
+          <span className="text-3xl font-bold text-signal-500 font-arabic">زبطلي</span>
+        </Link>
 
-      {/* Right: Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 mb-10">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="text-2xl font-extrabold text-primary-800">Zabatly</span>
-              <span className="text-2xl font-bold text-signal-500" style={{ fontFamily: ARABIC_FONT }}>زبطلي</span>
-            </Link>
-          </div>
-
+        <section aria-labelledby="register-title">
           <div className="mb-6">
             <div className="mb-4 flex items-center gap-2 text-[0.75rem] font-semibold text-sand-500">
               <span className={`h-1.5 flex-1 rounded-full ${step === 'credentials' ? 'bg-primary-800' : 'bg-green-600'}`} />
               <span className={`h-1.5 flex-1 rounded-full ${step === 'details' ? 'bg-primary-800' : 'bg-sand-200'}`} />
             </div>
-            <h1 className="text-[1.55rem] font-bold leading-tight text-primary-800">
-              {step === 'credentials' ? 'Create your account' : 'Account details'}
+            <h1 id="register-title" className="text-[1.55rem] font-bold leading-tight text-primary-800">
+              {step === 'credentials' ? t('register.createAccount') : t('register.accountDetails')}
             </h1>
             <p className="mt-2 text-[0.92rem] leading-6 text-sand-500">
               {step === 'credentials'
-                ? 'Start with email and password. Details come next.'
-                : 'Add the info renters and owners need to trust your profile.'}
+                ? t('register.step1Subtitle')
+                : t('register.step2Subtitle')}
             </p>
           </div>
 
@@ -202,14 +173,14 @@ export default function Register() {
             {step === 'credentials' && (
               <>
             <div>
-              <label htmlFor="reg-email" className="block text-label text-sand-700 mb-1.5">Email</label>
+              <label htmlFor="reg-email" className="block text-label text-sand-700 mb-1.5">{t('register.email')}</label>
               <input
                 ref={emailRef}
                 id="reg-email"
                 type="email"
                 required
                 autoComplete="email"
-                placeholder="name@example.com"
+                placeholder={t('register.emailPlaceholder')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -218,13 +189,13 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="reg-password" className="block text-label text-sand-700 mb-1.5">Password</label>
+              <label htmlFor="reg-password" className="block text-label text-sand-700 mb-1.5">{t('register.password')}</label>
               <input
                 id="reg-password"
                 type="password"
                 required
                 autoComplete="new-password"
-                placeholder="8+ chars, uppercase, symbol"
+                placeholder={t('register.passwordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -232,7 +203,7 @@ export default function Register() {
               />
               {password && (
                 <div className="mt-2 space-y-1.5 rounded-subtle bg-sand-100 px-3 py-2">
-                  <p className={`text-[0.75rem] font-semibold ${strength.className}`}>Strength: {strength.label}</p>
+                  <p className={`text-[0.75rem] font-semibold ${strength.className}`}>{t('register.strength')}: {strength.label}</p>
                   {PASSWORD_RULES.map((rule) => (
                     <PasswordRule key={rule.key} valid={checks[rule.key]} label={rule.label} />
                   ))}
@@ -241,13 +212,13 @@ export default function Register() {
             </div>
 
             <div>
-              <label htmlFor="reg-confirm-password" className="block text-label text-sand-700 mb-1.5">Confirm Password</label>
+              <label htmlFor="reg-confirm-password" className="block text-label text-sand-700 mb-1.5">{t('register.confirmPassword')}</label>
               <input
                 id="reg-confirm-password"
                 type="password"
                 required
                 autoComplete="new-password"
-                placeholder="Retype password"
+                placeholder={t('register.confirmPasswordPlaceholder')}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -255,7 +226,7 @@ export default function Register() {
               />
               {confirmPassword && (
                 <p className={`mt-1.5 text-[0.75rem] font-semibold ${passwordsMatch ? 'text-green-700' : 'text-red-700'}`}>
-                  {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
+                  {passwordsMatch ? t('register.passwordsMatch') : t('register.passwordsDontMatch')}
                 </p>
               )}
             </div>
@@ -265,13 +236,13 @@ export default function Register() {
             {step === 'details' && (
               <>
             <div>
-              <label htmlFor="reg-name" className="block text-label text-sand-700 mb-1.5">Full name</label>
+              <label htmlFor="reg-name" className="block text-label text-sand-700 mb-1.5">{t('register.fullName')}</label>
               <input
                 id="reg-name"
                 type="text"
                 required
                 autoComplete="name"
-                placeholder="Ahmed Ali"
+                placeholder={t('register.fullNamePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -280,37 +251,37 @@ export default function Register() {
             </div>
 
             <fieldset className="space-y-4 border-t border-sand-200 pt-5" disabled={loading}>
-              <legend className="mb-3 text-[0.8125rem] font-semibold text-sand-900">Account details</legend>
+              <legend className="mb-3 text-[0.8125rem] font-semibold text-sand-900">{t('register.accountDetailsLegend')}</legend>
               <div className="grid gap-4 sm:grid-cols-2">
-                <RegisterInput id="reg-dob" label="Date of birth" type="date" value={accountDetails.dateOfBirth} onChange={(value) => setAccountDetails((prev) => ({ ...prev, dateOfBirth: value }))} />
+                <RegisterInput id="reg-dob" label={t('register.dateOfBirth')} type="date" value={accountDetails.dateOfBirth} onChange={(value) => setAccountDetails((prev) => ({ ...prev, dateOfBirth: value }))} />
                 <div>
-                  <label htmlFor="reg-gender" className="block text-label text-sand-700 mb-1.5">Gender</label>
+                  <label htmlFor="reg-gender" className="block text-label text-sand-700 mb-1.5">{t('register.gender')}</label>
                   <select id="reg-gender" value={accountDetails.gender} onChange={(e) => setAccountDetails((prev) => ({ ...prev, gender: e.target.value }))} className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150">
-                    <option value="">Select gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                    <option value="prefer_not_to_say">Prefer not to say</option>
+                    <option value="">{t('register.selectGender')}</option>
+                    <option value="male">{t('register.male')}</option>
+                    <option value="female">{t('register.female')}</option>
+                    <option value="other">{t('register.other')}</option>
+                    <option value="prefer_not_to_say">{t('register.preferNotToSay')}</option>
                   </select>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <RegisterInput id="reg-city" label="Current city" value={accountDetails.city} placeholder="Alexandria" onChange={(value) => setAccountDetails((prev) => ({ ...prev, city: value }))} />
-                <RegisterInput id="reg-phone" label="Phone number" type="tel" value={accountDetails.phone} placeholder="01012345678" onChange={(value) => setAccountDetails((prev) => ({ ...prev, phone: value }))} />
+                <RegisterInput id="reg-city" label={t('register.currentCity')} value={accountDetails.city} placeholder={t('register.cityPlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, city: value }))} />
+                <RegisterInput id="reg-phone" label={t('register.phone')} type="tel" value={accountDetails.phone} placeholder={t('register.phonePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, phone: value }))} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <RegisterInput id="reg-nationality" label="Nationality" value={accountDetails.nationality} placeholder="Egyptian" onChange={(value) => setAccountDetails((prev) => ({ ...prev, nationality: value }))} />
-                <RegisterInput id="reg-language" label="Preferred language" value={accountDetails.preferredLanguage} placeholder="English" onChange={(value) => setAccountDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
+                <RegisterInput id="reg-nationality" label={t('register.nationality')} value={accountDetails.nationality} placeholder={t('register.nationalityPlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, nationality: value }))} />
+                <RegisterInput id="reg-language" label={t('register.preferredLanguage')} value={accountDetails.preferredLanguage} placeholder={t('register.preferredLanguagePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <RegisterInput id="reg-emergency-name" label="Emergency contact (optional)" value={accountDetails.emergencyContactName} placeholder="Name" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
-                <RegisterInput id="reg-emergency-phone" label="Contact phone (optional)" type="tel" value={accountDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
-                <RegisterInput id="reg-emergency-relation" label="Relation (optional)" value={accountDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
+                <RegisterInput id="reg-emergency-name" label={t('register.emergencyContact')} value={accountDetails.emergencyContactName} placeholder={t('register.emergencyNamePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
+                <RegisterInput id="reg-emergency-phone" label={t('register.contactPhone')} type="tel" value={accountDetails.emergencyContactPhone} placeholder={t('register.emergencyPhonePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
+                <RegisterInput id="reg-emergency-relation" label={t('register.relation')} value={accountDetails.emergencyContactRelation} placeholder={t('register.relationPlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
               </div>
             </fieldset>
 
             <fieldset disabled={loading}>
-              <legend className="block text-label text-sand-700 mb-2">I want to join as</legend>
+              <legend className="block text-label text-sand-700 mb-2">{t('register.joinAs')}</legend>
               <div className="grid grid-cols-3 gap-2">
                 {ROLES.map((r) => (
                   <button
@@ -333,32 +304,32 @@ export default function Register() {
             {role === 'driver' && (
               <fieldset className="space-y-4 border-t border-sand-200 pt-5" disabled={loading}>
                 <legend className="mb-3 text-[0.8125rem] font-semibold text-sand-900">
-                  Driver profile details
+                  {t('register.driverProfileDetails')}
                 </legend>
 
                 <div>
-                  <label htmlFor="driver-availability" className="block text-label text-sand-700 mb-1.5">Availability</label>
+                  <label htmlFor="driver-availability" className="block text-label text-sand-700 mb-1.5">{t('register.availability')}</label>
                   <select
                     id="driver-availability"
                     value={driverDetails.availability}
                     onChange={(e) => setDriverDetails((prev) => ({ ...prev, availability: e.target.value }))}
                     className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
                   >
-                    <option value="">Select availability</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Weekdays">Weekdays</option>
-                    <option value="Weekends">Weekends</option>
-                    <option value="Evenings">Evenings</option>
-                    <option value="Flexible">Flexible</option>
+                    <option value="">{t('register.selectAvailability')}</option>
+                    <option value="Full-time">{t('register.fullTime')}</option>
+                    <option value="Weekdays">{t('register.weekdays')}</option>
+                    <option value="Weekends">{t('register.weekends')}</option>
+                    <option value="Evenings">{t('register.evenings')}</option>
+                    <option value="Flexible">{t('register.flexible')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label htmlFor="driver-covered-areas" className="block text-label text-sand-700 mb-1.5">Areas / Cities Covered</label>
+                  <label htmlFor="driver-covered-areas" className="block text-label text-sand-700 mb-1.5">{t('register.areasCovered')}</label>
                   <input
                     id="driver-covered-areas"
                     type="text"
-                    placeholder="Alexandria, Cairo, North Coast"
+                    placeholder={t('register.areasCoveredPlaceholder')}
                     value={driverDetails.coveredAreas}
                     onChange={(e) => setDriverDetails((prev) => ({ ...prev, coveredAreas: e.target.value }))}
                     className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -367,22 +338,22 @@ export default function Register() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="driver-experience" className="block text-label text-sand-700 mb-1.5">Driving Experience</label>
+                    <label htmlFor="driver-experience" className="block text-label text-sand-700 mb-1.5">{t('register.drivingExperience')}</label>
                     <input
                       id="driver-experience"
                       type="text"
-                      placeholder="6 years, airport routes"
+                      placeholder={t('register.experiencePlaceholder')}
                       value={driverDetails.drivingExperience}
                       onChange={(e) => setDriverDetails((prev) => ({ ...prev, drivingExperience: e.target.value }))}
                       className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
                     />
                   </div>
                   <div>
-                    <label htmlFor="driver-vehicle-types" className="block text-label text-sand-700 mb-1.5">Vehicle Types</label>
+                    <label htmlFor="driver-vehicle-types" className="block text-label text-sand-700 mb-1.5">{t('register.vehicleTypes')}</label>
                     <input
                       id="driver-vehicle-types"
                       type="text"
-                      placeholder="Sedan, SUV, Van"
+                      placeholder={t('register.vehicleTypesPlaceholder')}
                       value={driverDetails.vehicleTypes}
                       onChange={(e) => setDriverDetails((prev) => ({ ...prev, vehicleTypes: e.target.value }))}
                       className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -391,11 +362,11 @@ export default function Register() {
                 </div>
 
                 <div>
-                  <label htmlFor="driver-license-info" className="block text-label text-sand-700 mb-1.5">License Information</label>
+                  <label htmlFor="driver-license-info" className="block text-label text-sand-700 mb-1.5">{t('register.licenseInfo')}</label>
                   <input
                     id="driver-license-info"
                     type="text"
-                    placeholder="Private license, valid through 2029"
+                    placeholder={t('register.licenseInfoPlaceholder')}
                     value={driverDetails.licenseInfo}
                     onChange={(e) => setDriverDetails((prev) => ({ ...prev, licenseInfo: e.target.value }))}
                     className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -403,11 +374,11 @@ export default function Register() {
                 </div>
 
                 <div>
-                  <label htmlFor="driver-languages" className="block text-label text-sand-700 mb-1.5">Languages Spoken</label>
+                  <label htmlFor="driver-languages" className="block text-label text-sand-700 mb-1.5">{t('register.languagesSpoken')}</label>
                   <input
                     id="driver-languages"
                     type="text"
-                    placeholder="Arabic, English"
+                    placeholder={t('register.languagesPlaceholder')}
                     value={driverDetails.languagesSpoken}
                     onChange={(e) => setDriverDetails((prev) => ({ ...prev, languagesSpoken: e.target.value }))}
                     className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
@@ -426,7 +397,7 @@ export default function Register() {
                   disabled={loading}
                   className="rounded-subtle border border-sand-200 bg-sand-100 px-4 py-3 text-[0.85rem] font-semibold text-sand-700 transition-colors hover:bg-sand-200/70 disabled:opacity-60"
                 >
-                  Back
+                  {t('register.back')}
                 </button>
               )}
               <button
@@ -437,23 +408,23 @@ export default function Register() {
                 {loading ? (
                   <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : step === 'credentials' ? (
-                  'Continue'
+                  t('register.continue')
                 ) : (
-                  'Sign up'
+                  t('register.signUp')
                 )}
               </button>
             </div>
           </form>
 
           <p className="mt-8 text-center text-sand-500 text-sm">
-            Already have an account?{' '}
+            {t('register.alreadyHaveAccount')}{' '}
             <Link to="/login" className="text-primary-700 font-semibold hover:text-primary-800 transition-colors">
-              Log in
+              {t('register.logIn')}
             </Link>
           </p>
-        </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
 

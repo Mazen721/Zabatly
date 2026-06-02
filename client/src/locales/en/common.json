@@ -1,0 +1,74 @@
+{
+  "nav": {
+    "browseCars": "Browse Cars",
+    "howItWorks": "How it works",
+    "aboutUs": "about us",
+    "help": "Help",
+    "drivers": "Drivers",
+    "aiAssistant": "AI Assistant",
+    "dashboard": "Dashboard",
+    "adminPanel": "Admin Panel",
+    "listVehicle": "+ List Vehicle",
+    "login": "Log in",
+    "logout": "Log out",
+    "profileSettings": "Profile settings",
+    "fleet": "Fleet",
+    "backTo": "Back to {{target}}"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "search": "Search",
+    "retry": "Retry",
+    "clearFilters": "Clear filters",
+    "clearAllFilters": "Clear all filters",
+    "viewAll": "View all",
+    "viewDetails": "View details"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "This road doesn't go anywhere. Let's get you back on track.",
+    "backHome": "Back to Zabatly"
+  },
+  "vehicle": {
+    "seats": "{{count}} seats",
+    "seat": "{{count}} seat",
+    "egpPerDay": "EGP / day",
+    "egpDay": "EGP/day",
+    "photoUnavailable": "Photo unavailable",
+    "rented": "Rented",
+    "unavailable": "Unavailable",
+    "recommended": "Recommended",
+    "car": "Car",
+    "auto": "Auto",
+    "manual": "Manual",
+    "driver": "+ Driver"
+  },
+  "footer": {
+    "tagline": "Smart vehicle rentals and transportation, built for Egypt.",
+    "product": "Product",
+    "browseVehicles": "Browse vehicles",
+    "findDriver": "Find a driver",
+    "listYourVehicle": "List your vehicle",
+    "company": "Company",
+    "about": "About",
+    "howItWorks": "How it works",
+    "contact": "Contact",
+    "legal": "Legal",
+    "privacyPolicy": "Privacy policy",
+    "termsOfService": "Terms of service",
+    "copyright": "© {{year}} Zabatly. Computer Science Graduation Project 2026.",
+    "language": "English"
+  },
+  "errors": {
+    "genericError": "Something went wrong. Please try again.",
+    "loadFailed": "Could not load data. Please try again."
+  }
+}

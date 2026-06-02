@@ -204,9 +204,12 @@ router.get('/:id/public', async (req, res) => {
     const bookingRoleQuery = user.role === 'agency'
       ? { owner: req.params.id }
       : { renter: req.params.id };
+    const countedStatuses = user.role === 'agency'
+      ? ['completed', 'active', 'confirmed']
+      : ['completed', 'expired'];
     const totalBookings = await Booking.countDocuments({
       ...bookingRoleQuery,
-      status: { $in: ['completed', 'active', 'confirmed'] },
+      status: { $in: countedStatuses },
     });
 
     const canViewSensitive = viewerId && (

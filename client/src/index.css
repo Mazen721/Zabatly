@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @layer base {
   html {
     font-kerning: normal;
@@ -28,6 +33,17 @@
     background-color: #b8c8e0;
     color: #0f1623;
   }
+}
+
+/* ── RTL / Arabic global styles ────────────────────────────── */
+[dir="rtl"] body {
+  font-family: 'Cairo', 'system-ui', sans-serif;
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3 {
+  letter-spacing: 0;
 }
 
 .reveal {

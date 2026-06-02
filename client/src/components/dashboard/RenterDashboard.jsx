@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import DashboardShell from './DashboardShell';
 import PaymentProofLink from '../PaymentProofLink';
 import { API } from '../../config/api';
@@ -21,15 +22,18 @@ const statusColors = {
   expired: 'bg-sand-100 text-sand-600 border border-sand-200',
 };
 
-const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold capitalize ${
-      statusColors[status] || statusColors.cancelled
-    }`}
-  >
-    {status}
-  </span>
-);
+const StatusBadge = ({ status }) => {
+  const { t } = useTranslation('dashboard');
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold capitalize ${
+        statusColors[status] || statusColors.cancelled
+      }`}
+    >
+      {t(`status.${status}`, status)}
+    </span>
+  );
+};
 
 const paymentLabels = {
   card: 'Card',
@@ -104,6 +108,8 @@ const EmptyState = ({ message, cta, href }) => (
 );
 
 export default function RenterDashboard({ user, returnTarget = null, initialSection = 'overview' }) {
+  const { t, i18n } = useTranslation('dashboard');
+  const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB';
   const [section, setSection] = useState(initialSection || 'overview');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +126,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
         const { data } = await axios.get(`${API}/api/bookings`, config);
         setBookings(data || []);
       } catch (err) {
-        setError('Could not load your bookings. Try again.');
+        setError(t('renter.loadError'));
       } finally {
         setLoading(false);
       }
@@ -164,7 +170,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
         prev.map((b) => (b._id === id ? { ...b, renterFinished: true } : b))
       );
     } catch {
-      setError('Could not request return. Try again.');
+      setError(t('renter.returnError'));
     }
   };
 
@@ -175,14 +181,14 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       });
       setSavedVehicles((prev) => prev.filter((vehicle) => vehicle._id !== vehicleId));
     } catch {
-      setError('Could not remove saved car. Try again.');
+      setError(t('renter.removeSavedError'));
     }
   };
 
   const navItems = [
     {
       id: 'overview',
-      label: 'Overview',
+      label: t('common.overview'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2" width="5" height="5" rx="1" />
@@ -194,7 +200,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
     },
     {
       id: 'bookings',
-      label: 'My Bookings',
+      label: t('renter.myBookings'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
@@ -204,7 +210,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
     },
     {
       id: 'saved',
-      label: 'Saved',
+      label: t('renter.saved'),
       badge: savedVehicles.length || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -216,7 +222,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
     { id: 'div1', type: 'divider', label: '' },
     {
       id: 'browse',
-      label: 'Browse Fleet',
+      label: t('renter.browseFleet'),
       href: '/explore',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -230,7 +236,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
   const bottomActions = [
     {
       id: 'profile',
-      label: 'Profile',
+      label: t('common.profile'),
       href: '/profile',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -248,7 +254,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       <span className="font-semibold text-sand-800">
         {activeBooking.vehicle
           ? `${activeBooking.vehicle.make} ${activeBooking.vehicle.model}`
-          : 'Active Ride'}
+          : t('renter.activeRide')}
       </span>
       <span className="text-sand-500">·</span>
       <span className="text-sand-600">
@@ -269,7 +275,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       <StatusBadge status="active" />
       {activeBooking.renterFinished && (
         <span className="text-[0.75rem] text-signal-600 font-medium">
-          Return requested
+          {t('renter.returnRequested')}
         </span>
       )}
     </div>
@@ -289,18 +295,18 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       {section === 'overview' && (
         <div className="space-y-6">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Welcome back, {user.name?.split(' ')[0] || 'there'}
+            {t('renter.welcome', { name: user.name?.split(' ')[0] || t('common.guest') })}
           </h1>
 
           {/* Metrics */}
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Total Trips" value={completedCount} />
+            <MetricTile label={t('renter.totalTrips')} value={completedCount} />
             <MetricTile
-              label="Active"
+              label={t('renter.active')}
               value={activeBooking ? 1 : 0}
               accent={activeBooking ? true : false}
             />
-            <MetricTile label="Total Spent" value={`${totalSpent.toLocaleString()} EGP`} />
+            <MetricTile label={t('renter.totalSpent')} value={`${totalSpent.toLocaleString()} ${t('common.egp')}`} />
           </div>
 
           {error && (
@@ -309,19 +315,18 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
             </div>
           )}
 
-          {/* Two columns: Booking History + Quick Actions */}
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
+          <div className={`grid grid-cols-1 gap-6 ${activeBooking ? 'xl:grid-cols-[1fr_280px]' : ''}`}>
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[0.95rem] font-semibold text-sand-900">
-                  Recent Bookings
+                  {t('renter.recentBookings')}
                 </h2>
                 {bookings.length > 0 && (
                   <button
                     onClick={() => setSection('bookings')}
                     className="text-[0.75rem] font-medium text-primary-600 hover:text-primary-800 transition-colors"
                   >
-                    View all
+                    {t('common.viewAll')}
                   </button>
                 )}
               </div>
@@ -329,10 +334,10 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
               <div className="bg-sand-50 border border-sand-200 rounded-soft overflow-hidden">
                 {/* Table header */}
                 <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_80px_100px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-                  <span>Vehicle</span>
-                  <span>Dates</span>
-                  <span>Status</span>
-                  <span className="text-right">Amount</span>
+                  <span>{t('common.vehicle')}</span>
+                  <span>{t('common.dates')}</span>
+                  <span>{t('common.status')}</span>
+                  <span className="text-right">{t('common.amount')}</span>
                 </div>
 
                 {loading ? (
@@ -343,8 +348,8 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                   </div>
                 ) : bookings.length === 0 ? (
                   <EmptyState
-                    message="No bookings yet. Browse the fleet to find your first ride."
-                    cta="Browse Fleet"
+                    message={t('renter.emptyBookings')}
+                    cta={t('renter.browseFleet')}
                     href="/explore"
                   />
                 ) : (
@@ -352,8 +357,8 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                     {bookings.slice(0, 6).map((b) => {
                       const isDriverOnly = !b.vehicle && b.driver;
                       const title = isDriverOnly
-                        ? 'Driver Service'
-                        : `${b.vehicle?.make || 'Deleted'} ${b.vehicle?.model || 'Vehicle'}`;
+                        ? t('renter.driverService')
+                        : `${b.vehicle?.make || t('common.deleted')} ${b.vehicle?.model || t('common.vehicle')}`;
                       return (
                         <div
                           key={b._id}
@@ -389,44 +394,19 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="space-y-3">
-              <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-3">
-                Quick Actions
-              </h2>
-              <Link
-                to="/explore"
-                className="flex items-center justify-between bg-primary-800 text-white px-4 py-3 rounded-subtle hover:bg-primary-900 transition-colors duration-150"
-              >
-                <span className="text-[0.8125rem] font-semibold">New Booking</span>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 2.5 9.5 7 5 11.5" />
-                </svg>
-              </Link>
-              <Link
-                to="/explore"
-                className="flex items-center justify-between bg-sand-100 text-sand-800 border border-sand-200 px-4 py-3 rounded-subtle hover:bg-sand-200/60 transition-colors duration-150"
-              >
-                <span className="text-[0.8125rem] font-medium">Browse Fleet</span>
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 2.5 9.5 7 5 11.5" />
-                </svg>
-              </Link>
-
-
-              {/* Active booking card */}
-              {activeBooking && (
+            {activeBooking && (
+              <div>
                 <div className="mt-4 border border-sand-200 rounded-soft p-4 bg-sand-50">
                   <p className="text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-sand-500 mb-2">
-                    Active Trip
+                    {t('renter.activeTrip')}
                   </p>
                   <p className="text-[0.875rem] font-semibold text-sand-900 mb-1">
                     {activeBooking.vehicle
                       ? `${activeBooking.vehicle.make} ${activeBooking.vehicle.model}`
-                      : 'Driver Service'}
+                      : t('renter.driverService')}
                   </p>
                   <p className="text-[0.8125rem] text-sand-600 mb-3">
-                    Return:{' '}
+                    {t('renter.returnLabel')}{' '}
                     {activeBooking.endDate
                       ? new Date(activeBooking.endDate).toLocaleDateString('en-GB', {
                           month: 'short',
@@ -440,16 +420,16 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                       onClick={() => returnCar(activeBooking._id)}
                       className="w-full bg-primary-800 text-white text-[0.8125rem] font-semibold py-2.5 rounded-subtle hover:bg-primary-900 transition-colors duration-150"
                     >
-                      {activeBooking.vehicle ? 'Return Vehicle' : 'Release Driver'}
+                      {activeBooking.vehicle ? t('renter.returnVehicle') : t('renter.releaseDriver')}
                     </button>
                   ) : (
                     <div className="text-center text-[0.8125rem] text-sand-500 font-medium py-2 bg-sand-100 rounded-subtle">
-                      Awaiting confirmation
+                      {t('renter.awaitingConfirmation')}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -458,16 +438,16 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       {section === 'bookings' && (
         <div>
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            My Bookings
+            {t('renter.myBookings')}
           </h1>
           <div className="bg-sand-50 border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.35fr)_90px_115px_100px_120px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-              <span>Vehicle</span>
-              <span>Dates</span>
-              <span>Status</span>
-              <span>Payment</span>
-              <span className="text-right">Amount</span>
-              <span className="text-right">Action</span>
+              <span>{t('common.vehicle')}</span>
+              <span>{t('common.dates')}</span>
+              <span>{t('common.status')}</span>
+              <span>{t('renter.payment')}</span>
+              <span className="text-right">{t('common.amount')}</span>
+              <span className="text-right">{t('common.action')}</span>
             </div>
 
             {loading ? (
@@ -478,8 +458,8 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
               </div>
             ) : bookings.length === 0 ? (
               <EmptyState
-                message="No bookings yet. Browse the fleet to find your first ride."
-                cta="Browse Fleet"
+                message={t('renter.emptyBookings')}
+                cta={t('renter.browseFleet')}
                 href="/explore"
               />
             ) : (
@@ -487,8 +467,8 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                 {bookings.map((b) => {
                   const isDriverOnly = !b.vehicle && b.driver;
                   const title = isDriverOnly
-                    ? 'Driver Service'
-                    : `${b.vehicle?.make || 'Deleted'} ${b.vehicle?.model || 'Vehicle'}`;
+                    ? t('renter.driverService')
+                    : `${b.vehicle?.make || t('common.deleted')} ${b.vehicle?.model || t('common.vehicle')}`;
                   return (
                     <div
                       key={b._id}
@@ -515,7 +495,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                       <StatusBadge status={displayStatus(b, now)} />
                       <div className="space-y-1">
                         <span className="block text-[0.8125rem] font-medium text-sand-700">
-                          {paymentLabels[b.payment?.method] || 'Not set'}
+                          {t(`payment.${b.payment?.method}`, t('payment.notSet'))}
                         </span>
                         <PaymentProofLink path={b.payment?.proofUrl} />
                       </div>
@@ -528,12 +508,12 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                             onClick={() => returnCar(b._id)}
                             className="text-[0.75rem] font-semibold text-primary-700 hover:text-primary-900 transition-colors"
                           >
-                            Return
+                            {t('common.return')}
                           </button>
                         )}
                         {displayStatus(b, now) === 'active' && b.renterFinished && (
                           <span className="text-[0.75rem] text-sand-500">
-                            Awaiting return
+                            {t('renter.awaitingReturn')}
                           </span>
                         )}
                         {isReviewableBooking(b, now) && (
@@ -541,7 +521,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                             to={`/vehicles/${b.vehicle._id}`}
                             className="text-[0.75rem] font-semibold text-primary-700 hover:text-primary-900 transition-colors"
                           >
-                            Review
+                            {t('common.review')}
                           </Link>
                         )}
                       </div>
@@ -558,21 +538,21 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
       {section === 'saved' && (
         <div>
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Saved Vehicles
+            {t('renter.savedVehicles')}
           </h1>
           {savedVehicles.length === 0 ? (
             <EmptyState
-              message="You haven't saved any vehicles yet. Tap the heart on any listing to save it here."
-              cta="Browse Fleet"
+              message={t('renter.emptySaved')}
+              cta={t('renter.browseFleet')}
               href="/explore"
             />
           ) : (
             <div className="bg-sand-50 border border-sand-200 rounded-soft overflow-hidden">
               <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_110px_100px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-                <span>Vehicle</span>
-                <span>Location</span>
-                <span>Daily Rate</span>
-                <span className="text-right">Action</span>
+                <span>{t('common.vehicle')}</span>
+                <span>{t('renter.location')}</span>
+                <span>{t('renter.dailyRate')}</span>
+                <span className="text-right">{t('common.action')}</span>
               </div>
               <div className="divide-y divide-sand-100">
                 {savedVehicles.map((vehicle) => (
@@ -602,7 +582,7 @@ export default function RenterDashboard({ user, returnTarget = null, initialSect
                         onClick={() => removeSavedVehicle(vehicle._id)}
                         className="text-[0.75rem] font-semibold text-red-600 hover:text-red-800 transition-colors"
                       >
-                        Remove
+                        {t('common.remove')}
                       </button>
                     </div>
                   </div>

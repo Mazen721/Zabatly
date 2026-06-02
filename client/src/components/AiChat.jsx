@@ -1,14 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
 
+const TYPEWRITER_CHUNK = 2;
+const TYPEWRITER_DELAY = 18;
+
 function ChatWindow({ isFullPage = false, onClose = null }) {
+  const { t } = useTranslation('ai');
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([
     {
       role: 'ai',
-      text: 'How many people are traveling, or what kind of car are you looking for?',
+      text: t('initialMessage'),
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,6 +28,43 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
     inputRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    const typingIndex = messages.findIndex((msg) => msg.role === 'ai' && msg.isTyping);
+    if (typingIndex === -1) return undefined;
+
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const currentMessage = messages[typingIndex];
+    const fullText = currentMessage.fullText || '';
+
+    if (prefersReducedMotion || currentMessage.text.length >= fullText.length) {
+      setMessages((prev) =>
+        prev.map((msg, index) =>
+          index === typingIndex
+            ? { ...msg, text: fullText, isTyping: false }
+            : msg
+        )
+      );
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setMessages((prev) =>
+        prev.map((msg, index) => {
+          if (index !== typingIndex) return msg;
+
+          const nextText = fullText.slice(0, msg.text.length + TYPEWRITER_CHUNK);
+          return {
+            ...msg,
+            text: nextText,
+            isTyping: nextText.length < fullText.length,
+          };
+        })
+      );
+    }, TYPEWRITER_DELAY);
+
+    return () => window.clearTimeout(timer);
+  }, [messages]);
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -35,7 +77,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
 
     try {
       const chatHistory = updated
-        .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+        .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.fullText || m.text}`)
         .join('\n');
 
       const { data } = await axios.post(`${API}/api/chat`, {
@@ -47,7 +89,9 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
         ...prev,
         {
           role: 'ai',
-          text: data.reply,
+          text: '',
+          fullText: data.reply || '',
+          isTyping: true,
           vehicles: data.vehicles || [],
           savings_tip: data.savings_tip || null,
         },
@@ -57,7 +101,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
         ...prev,
         {
           role: 'ai',
-          text: 'Having trouble connecting. Try again in a moment.',
+          text: t('connectionError'),
         },
       ]);
     } finally {
@@ -76,11 +120,11 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
       <div className="flex flex-shrink-0 items-center justify-between bg-primary-800 px-4 py-3">
         <div>
           <span className="text-[0.875rem] font-semibold text-white">
-            Zabatly AI Assistant
+            {t('assistant')}
           </span>
           {isFullPage && (
             <p className="mt-0.5 text-[0.72rem] text-primary-200">
-              Tell it the trip, budget, or car type you have in mind.
+              {t('assistantIntro')}
             </p>
           )}
         </div>
@@ -88,7 +132,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
           <button
             onClick={onClose}
             className="flex h-6 w-6 items-center justify-center rounded text-primary-300 transition-colors hover:text-white"
-            aria-label="Close chat"
+            aria-label={t('closeChat')}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" />
@@ -111,15 +155,18 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
               }`}
             >
               {msg.text}
+              {msg.isTyping && (
+                <span className="ml-0.5 inline-block h-3 w-px translate-y-0.5 animate-pulse bg-sand-500" />
+              )}
             </div>
 
-            {msg.savings_tip && (
+            {msg.savings_tip && !msg.isTyping && (
               <div className="mt-1.5 max-w-[85%] rounded-subtle border border-signal-200 bg-signal-50 px-2.5 py-1.5 text-[0.75rem] leading-snug text-signal-700">
                 {msg.savings_tip}
               </div>
             )}
 
-            {msg.vehicles?.length > 0 && (
+            {msg.vehicles?.length > 0 && !msg.isTyping && (
               <div className="mt-2 w-full max-w-[90%] space-y-1.5">
                 {msg.vehicles.map((car) => (
                   <Link
@@ -132,7 +179,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
                         {car.make} {car.model}
                       </p>
                       <p className="text-[0.7rem] capitalize text-sand-500">
-                        {car.type} - {car.transmission || 'Auto'}
+                        {car.type} - {car.transmission || t('auto')}
                       </p>
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-2">
@@ -154,7 +201,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
           <div className="flex items-start">
             <div className="rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2">
               <span className="animate-pulse text-[0.8125rem] text-sand-500">
-                Thinking...
+                {t('thinking')}
               </span>
             </div>
           </div>
@@ -171,7 +218,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about cars, pricing, anything..."
+          placeholder={t('placeholder')}
           disabled={isLoading}
           className="flex-1 rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2 text-[0.8125rem] text-sand-900 transition-colors placeholder:text-sand-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 disabled:opacity-60"
         />
@@ -179,7 +226,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
           type="submit"
           disabled={isLoading || !input.trim()}
           className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-subtle bg-primary-800 text-white transition-colors hover:bg-primary-900 disabled:opacity-40"
-          aria-label="Send message"
+          aria-label={t('sendMessage')}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12.5 1.5l-6 11-2-4.5L0 6l12.5-4.5z" />
@@ -194,6 +241,7 @@ function ChatWindow({ isFullPage = false, onClose = null }) {
 export { ChatWindow };
 
 export default function AiChat() {
+  const { t } = useTranslation('ai');
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -208,7 +256,7 @@ export default function AiChat() {
         <button
           onClick={() => setIsOpen(true)}
           className="flex h-12 w-12 items-center justify-center rounded-soft bg-primary-800 text-white shadow-md transition-colors hover:bg-primary-900"
-          aria-label="Open chat"
+          aria-label={t('openChat')}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 3h14v10H7l-4 4V3z" />

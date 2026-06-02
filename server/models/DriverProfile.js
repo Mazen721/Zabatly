@@ -12,7 +12,7 @@ const driverProfileSchema = new mongoose.Schema({
   years_experience: { type: Number, required: true },
   hourly_rate: { type: Number, required: true },
   
-  // Where can they work? (e.g., "Alexandria", "Cairo")
+  // Where can they work? (e.g., "Cairo", "Giza")
   city: { type: String, required: true },
 
   // Verification

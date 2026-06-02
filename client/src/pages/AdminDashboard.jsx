@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import DashboardShell from '../components/dashboard/DashboardShell';
 import PaymentProofLink from '../components/PaymentProofLink';
 import { API } from '../config/api';
 
 const StatusBadge = ({ status }) => {
+  const { t } = useTranslation('admin');
   const map = {
     active: 'bg-green-50 text-green-700 border border-green-200',
     verified: 'bg-green-50 text-green-700 border border-green-200',
@@ -21,7 +23,7 @@ const StatusBadge = ({ status }) => {
         map[status] || map.pending
       }`}
     >
-      {status}
+      {t(`statuses.${status}`, status)}
     </span>
   );
 };
@@ -38,6 +40,7 @@ const formatDate = (date) =>
 const money = (value) => `${Number(value || 0).toLocaleString()} EGP`;
 
 export default function AdminDashboard() {
+  const { t } = useTranslation('admin');
   const [section, setSection] = useState('overview');
   const [pending, setPending] = useState({ identity: [], licenses: [], vehicles: [] });
   const [platform, setPlatform] = useState({
@@ -84,7 +87,7 @@ export default function AdminDashboard() {
         reviews: overview?.reviews || [],
       });
     } catch {
-      setError('Could not load admin data.');
+      setError(t('loadError'));
     } finally {
       setLoading(false);
     }
@@ -102,7 +105,7 @@ export default function AdminDashboard() {
       setRejectId(null);
       setRejectReason('');
     } catch {
-      setError('Review action failed.');
+      setError(t('reviewError'));
     }
   };
 
@@ -115,7 +118,7 @@ export default function AdminDashboard() {
   const navItems = [
     {
       id: 'overview',
-      label: 'Overview',
+      label: t('overview'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2" width="5" height="5" rx="1" />
@@ -127,7 +130,7 @@ export default function AdminDashboard() {
     },
     {
       id: 'verifications',
-      label: 'Verifications',
+      label: t('verifications'),
       badge: totalPending || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -138,7 +141,7 @@ export default function AdminDashboard() {
     },
     {
       id: 'users',
-      label: 'Users',
+      label: t('users'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="6" cy="5" r="2.5" />
@@ -150,7 +153,7 @@ export default function AdminDashboard() {
     },
     {
       id: 'bookings',
-      label: 'Bookings',
+      label: t('bookings'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 2.5h7.5l3 3V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1z" />
@@ -160,7 +163,7 @@ export default function AdminDashboard() {
     },
     {
       id: 'reviews',
-      label: 'Reviews',
+      label: t('reviews'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M8 2.5l1.6 3.2 3.5.5-2.5 2.5.6 3.5L8 10.5l-3.2 1.7.6-3.5L2.9 6.2l3.5-.5L8 2.5z" />
@@ -169,7 +172,7 @@ export default function AdminDashboard() {
     },
     {
       id: 'fleet',
-      label: 'Fleet',
+      label: t('fleet'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2.5 10.5h11M3.5 6l1.5-3h6l1.5 3" />
@@ -184,7 +187,7 @@ export default function AdminDashboard() {
   const bottomActions = [
     {
       id: 'profile',
-      label: 'Profile',
+      label: t('profile'),
       href: '/profile',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -199,14 +202,14 @@ export default function AdminDashboard() {
     <div className="flex items-center gap-3">
       <span className="inline-block w-2 h-2 rounded-full bg-signal-500" />
       <span className="font-semibold text-sand-800">
-        {totalPending} item{totalPending > 1 ? 's' : ''} need review
+        {t('needsReviewCount', { count: totalPending })}
       </span>
       <span className="text-sand-500">·</span>
       <button
         onClick={() => setSection('verifications')}
         className="text-[0.8125rem] font-medium text-primary-700 hover:text-primary-900 transition-colors"
       >
-        Open queue
+        {t('openQueue')}
       </button>
     </div>
   ) : null;
@@ -214,7 +217,7 @@ export default function AdminDashboard() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-sand-50">
-        <p className="text-[0.875rem] text-sand-500">Loading...</p>
+        <p className="text-[0.875rem] text-sand-500">{t('loading')}</p>
       </div>
     );
   }
@@ -244,21 +247,21 @@ export default function AdminDashboard() {
           {imgUrl ? (
             <img
               src={imgUrl}
-              alt="Document"
+              alt={t('document')}
               className="w-full h-full object-contain"
             />
           ) : (
             <div className="flex items-center justify-center h-full text-[0.8125rem] text-sand-400">
-              No document image
+              {t('noDocument')}
             </div>
           )}
         </div>
         <div className="p-3">
           <p className="text-[0.875rem] font-medium text-sand-900 mb-0.5">
-            {item.name || `${item.make || 'Unknown'} ${item.model || 'Vehicle'}`}
+            {item.name || `${item.make || t('unknown')} ${item.model || t('vehicle')}`}
           </p>
           <p className="text-[0.75rem] text-sand-500 mb-3">
-            {item.email || `Owner: ${item.owner?.name || 'Unknown'}`}
+            {item.email || `${t('owner')}: ${item.owner?.name || t('unknown')}`}
           </p>
 
           {isRejecting ? (
@@ -267,7 +270,7 @@ export default function AdminDashboard() {
                 type="text"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Reason for rejection"
+                placeholder={t('reason')}
                 className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2 text-[0.8125rem] text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                 autoFocus
               />
@@ -281,7 +284,7 @@ export default function AdminDashboard() {
                   disabled={!rejectReason.trim()}
                   className="flex-1 text-[0.75rem] font-semibold bg-red-600 text-white py-1.5 rounded-subtle hover:bg-red-700 transition-colors disabled:opacity-50"
                 >
-                  Confirm Reject
+                  {t('confirmReject')}
                 </button>
                 <button
                   onClick={() => {
@@ -290,7 +293,7 @@ export default function AdminDashboard() {
                   }}
                   className="flex-1 text-[0.75rem] font-semibold text-sand-600 bg-sand-100 border border-sand-200 py-1.5 rounded-subtle hover:bg-sand-200 transition-colors"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
               </div>
             </div>
@@ -300,7 +303,7 @@ export default function AdminDashboard() {
                 onClick={() => handleReview(item._id, type, 'verified')}
                 className="flex-1 text-[0.75rem] font-semibold bg-green-600 text-white py-1.5 rounded-subtle hover:bg-green-700 transition-colors"
               >
-                Approve
+                {t('approve')}
               </button>
               <button
                 onClick={() => {
@@ -310,7 +313,7 @@ export default function AdminDashboard() {
                 }}
                 className="flex-1 text-[0.75rem] font-semibold text-sand-600 bg-sand-100 border border-sand-200 py-1.5 rounded-subtle hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
               >
-                Reject
+                {t('reject')}
               </button>
             </div>
           )}
@@ -332,7 +335,7 @@ export default function AdminDashboard() {
         <div className="bg-red-50 border border-red-200 text-red-700 text-[0.8125rem] px-4 py-2.5 rounded-subtle mb-5">
           {error}
           <button onClick={() => setError(null)} className="ml-3 font-semibold underline">
-            Dismiss
+            {t('dismiss')}
           </button>
         </div>
       )}
@@ -341,21 +344,21 @@ export default function AdminDashboard() {
       {section === 'overview' && (
         <div className="space-y-6">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Admin Overview
+            {t('adminOverview')}
           </h1>
 
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Identity" value={pending.identity?.length || 0} accent={pending.identity?.length > 0} />
-            <MetricTile label="Licenses" value={pending.licenses?.length || 0} accent={pending.licenses?.length > 0} />
-            <MetricTile label="Vehicles" value={pending.vehicles?.length || 0} accent={pending.vehicles?.length > 0} />
-            <MetricTile label="Total Queue" value={totalPending} />
+            <MetricTile label={t('identity')} value={pending.identity?.length || 0} accent={pending.identity?.length > 0} />
+            <MetricTile label={t('licenses')} value={pending.licenses?.length || 0} accent={pending.licenses?.length > 0} />
+            <MetricTile label={t('vehicles')} value={pending.vehicles?.length || 0} accent={pending.vehicles?.length > 0} />
+            <MetricTile label={t('totalQueue')} value={totalPending} />
           </div>
 
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Users" value={stats.users?.total || 0} />
-            <MetricTile label="Available Cars" value={`${stats.vehicles?.available || 0}/${stats.vehicles?.total || 0}`} accent={(stats.vehicles?.available || 0) > 0} />
-            <MetricTile label="Active Bookings" value={stats.bookings?.byStatus?.active || 0} accent={(stats.bookings?.byStatus?.active || 0) > 0} />
-            <MetricTile label="Revenue" value={money(stats.bookings?.revenue)} />
+            <MetricTile label={t('users')} value={stats.users?.total || 0} />
+            <MetricTile label={t('availableCars')} value={`${stats.vehicles?.available || 0}/${stats.vehicles?.total || 0}`} accent={(stats.vehicles?.available || 0) > 0} />
+            <MetricTile label={t('activeBookings')} value={stats.bookings?.byStatus?.active || 0} accent={(stats.bookings?.byStatus?.active || 0) > 0} />
+            <MetricTile label={t('revenue')} value={money(stats.bookings?.revenue)} />
           </div>
 
           {/* Quick verification preview */}
@@ -363,13 +366,13 @@ export default function AdminDashboard() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[0.95rem] font-semibold text-sand-900">
-                  Needs Review
+                  {t('needsReview')}
                 </h2>
                 <button
                   onClick={() => setSection('verifications')}
                   className="text-[0.75rem] font-medium text-primary-600 hover:text-primary-800 transition-colors"
                 >
-                  Full queue
+                  {t('fullQueue')}
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -383,10 +386,10 @@ export default function AdminDashboard() {
           ) : (
             <div className="border border-sand-200 rounded-soft py-10 text-center">
               <p className="text-[0.95rem] font-semibold text-sand-800">
-                All clear
+                {t('allClear')}
               </p>
               <p className="text-[0.8125rem] text-sand-500 mt-1">
-                No items pending review.
+                {t('noPendingReview')}
               </p>
             </div>
           )}
@@ -397,31 +400,31 @@ export default function AdminDashboard() {
       {section === 'verifications' && (
         <div className="space-y-8">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Verification Queue
+            {t('verificationQueue')}
           </h1>
 
           {loading ? (
             <div className="py-12 text-center text-[0.875rem] text-sand-500 animate-pulse">
-              Loading verification data...
+              {t('loadingVerification')}
             </div>
           ) : (
             <>
               <VerificationSection
-                title="Identity Documents"
+                title={t('identityDocuments')}
                 count={pending.identity?.length || 0}
                 items={pending.identity}
                 type="identity"
                 renderItem={renderVerificationItem}
               />
               <VerificationSection
-                title="Driving Licenses"
+                title={t('drivingLicenses')}
                 count={pending.licenses?.length || 0}
                 items={pending.licenses}
                 type="license"
                 renderItem={renderVerificationItem}
               />
               <VerificationSection
-                title="Vehicle Licenses"
+                title={t('vehicleLicenses')}
                 count={pending.vehicles?.length || 0}
                 items={pending.vehicles}
                 type="vehicle"
@@ -436,28 +439,28 @@ export default function AdminDashboard() {
       {section === 'users' && (
         <div className="space-y-5">
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            User Management
+            {t('userManagement')}
           </h1>
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="All Users" value={stats.users?.total || 0} />
-            <MetricTile label="Renters" value={(stats.users?.byRole?.user || 0) + (stats.users?.byRole?.renter || 0)} />
-            <MetricTile label="Owners" value={stats.users?.byRole?.agency || 0} />
-            <MetricTile label="Drivers" value={stats.users?.byRole?.driver || 0} />
+            <MetricTile label={t('allUsers')} value={stats.users?.total || 0} />
+            <MetricTile label={t('renters')} value={(stats.users?.byRole?.user || 0) + (stats.users?.byRole?.renter || 0)} />
+            <MetricTile label={t('owners')} value={stats.users?.byRole?.agency || 0} />
+            <MetricTile label={t('drivers')} value={stats.users?.byRole?.driver || 0} />
           </div>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden md:grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.5fr)_90px_110px_110px] gap-4 bg-sand-100 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">
-              <span>User</span>
-              <span>Email</span>
-              <span>Role</span>
-              <span>KYC</span>
-              <span>Joined</span>
+              <span>{t('user')}</span>
+              <span>{t('email')}</span>
+              <span>{t('role')}</span>
+              <span>{t('kyc')}</span>
+              <span>{t('joined')}</span>
             </div>
             <div className="divide-y divide-sand-100">
               {platform.users.map((item) => (
                 <div key={item._id} className="grid grid-cols-1 gap-2 px-4 py-3 text-[0.85rem] md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.5fr)_90px_110px_110px] md:items-center md:gap-4">
                   <span className="font-semibold text-sand-900">{item.name}</span>
                   <span className="truncate text-sand-600">{item.email}</span>
-                  <span className="capitalize text-sand-700">{item.role}</span>
+                  <span className="capitalize text-sand-700">{t(`roles.${item.role}`, item.role)}</span>
                   <StatusBadge status={item.kyc_status || 'unsubmitted'} />
                   <span className="text-sand-500">{formatDate(item.createdAt)}</span>
                 </div>
@@ -471,31 +474,31 @@ export default function AdminDashboard() {
       {section === 'bookings' && (
         <div className="space-y-5">
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Bookings
+            {t('bookings')}
           </h1>
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Total" value={stats.bookings?.total || 0} />
-            <MetricTile label="Pending" value={stats.bookings?.byStatus?.pending || 0} accent={(stats.bookings?.byStatus?.pending || 0) > 0} />
-            <MetricTile label="Active" value={stats.bookings?.byStatus?.active || 0} accent={(stats.bookings?.byStatus?.active || 0) > 0} />
-            <MetricTile label="Completed" value={stats.bookings?.byStatus?.completed || 0} />
+            <MetricTile label={t('total')} value={stats.bookings?.total || 0} />
+            <MetricTile label={t('pending')} value={stats.bookings?.byStatus?.pending || 0} accent={(stats.bookings?.byStatus?.pending || 0) > 0} />
+            <MetricTile label={t('active')} value={stats.bookings?.byStatus?.active || 0} accent={(stats.bookings?.byStatus?.active || 0) > 0} />
+            <MetricTile label={t('completed')} value={stats.bookings?.byStatus?.completed || 0} />
           </div>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden lg:grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_90px_110px] gap-4 bg-sand-100 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">
-              <span>Booking</span>
-              <span>Renter</span>
-              <span>Provider</span>
-              <span>Status</span>
-              <span className="text-right">Total</span>
+              <span>{t('booking')}</span>
+              <span>{t('renter')}</span>
+              <span>{t('provider')}</span>
+              <span>{t('status')}</span>
+              <span className="text-right">{t('total')}</span>
             </div>
             <div className="divide-y divide-sand-100">
               {platform.bookings.map((item) => (
                 <div key={item._id} className="grid grid-cols-1 gap-2 px-4 py-3 text-[0.85rem] lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_90px_110px] lg:items-center lg:gap-4">
                   <span className="font-semibold text-sand-900">
-                    {item.vehicle ? `${item.vehicle.make} ${item.vehicle.model}` : 'Driver request'}
+                    {item.vehicle ? `${item.vehicle.make} ${item.vehicle.model}` : t('driverRequest')}
                     <span className="block text-[0.74rem] font-normal text-sand-500">{formatDate(item.createdAt)}</span>
                   </span>
-                  <span className="text-sand-700">{item.renter?.name || 'Unknown'}</span>
-                  <span className="text-sand-700">{item.owner?.name || item.driver?.name || 'Unknown'}</span>
+                  <span className="text-sand-700">{item.renter?.name || t('unknown')}</span>
+                  <span className="text-sand-700">{item.owner?.name || item.driver?.name || t('unknown')}</span>
                   <StatusBadge status={item.status} />
                   <span className="space-y-1 font-semibold text-sand-900 tabular-nums lg:text-right">
                     <span className="block">{money(item.totalPrice)}</span>
@@ -512,21 +515,21 @@ export default function AdminDashboard() {
       {section === 'fleet' && (
         <div className="space-y-5">
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Fleet Overview
+            {t('fleetOverview')}
           </h1>
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Vehicles" value={stats.vehicles?.total || 0} />
-            <MetricTile label="Available" value={stats.vehicles?.available || 0} accent={(stats.vehicles?.available || 0) > 0} />
-            <MetricTile label="Rented" value={stats.vehicles?.rented || 0} />
-            <MetricTile label="Pending KYC" value={stats.vehicles?.pendingKyc || 0} accent={(stats.vehicles?.pendingKyc || 0) > 0} />
+            <MetricTile label={t('vehicles')} value={stats.vehicles?.total || 0} />
+            <MetricTile label={t('available')} value={stats.vehicles?.available || 0} accent={(stats.vehicles?.available || 0) > 0} />
+            <MetricTile label={t('rented')} value={stats.vehicles?.rented || 0} />
+            <MetricTile label={t('pendingKyc')} value={stats.vehicles?.pendingKyc || 0} accent={(stats.vehicles?.pendingKyc || 0) > 0} />
           </div>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden lg:grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_90px_100px_110px] gap-4 bg-sand-100 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">
-              <span>Vehicle</span>
-              <span>Owner</span>
-              <span>Status</span>
-              <span>KYC</span>
-              <span className="text-right">Daily Price</span>
+              <span>{t('vehicle')}</span>
+              <span>{t('owner')}</span>
+              <span>{t('status')}</span>
+              <span>{t('kyc')}</span>
+              <span className="text-right">{t('dailyPrice')}</span>
             </div>
             <div className="divide-y divide-sand-100">
               {platform.vehicles.map((item) => (
@@ -535,13 +538,13 @@ export default function AdminDashboard() {
                     {item.make} {item.model}
                     <span className="block text-[0.74rem] font-normal capitalize text-sand-500">{item.year} / {item.type}</span>
                   </span>
-                  <span className="text-sand-700">{item.owner?.name || 'Unknown'}</span>
+                  <span className="text-sand-700">{item.owner?.name || t('unknown')}</span>
                   <span className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold ${
                     item.isAvailable === false
                       ? 'bg-sand-100 text-sand-600 border border-sand-200'
                       : 'bg-green-50 text-green-700 border border-green-200'
                   }`}>
-                    {item.isAvailable === false ? 'Rented' : 'Available'}
+                    {item.isAvailable === false ? t('rented') : t('available')}
                   </span>
                   <StatusBadge status={item.kyc_status || 'unsubmitted'} />
                   <span className="font-semibold text-sand-900 tabular-nums lg:text-right">{money(item.price_per_day)}</span>
@@ -556,31 +559,31 @@ export default function AdminDashboard() {
       {section === 'reviews' && (
         <div className="space-y-5">
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Reviews
+            {t('reviews')}
           </h1>
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Reviews" value={stats.reviews?.total || 0} />
-            <MetricTile label="Average Rating" value={(stats.reviews?.averageRating || 0).toFixed(1)} />
+            <MetricTile label={t('reviews')} value={stats.reviews?.total || 0} />
+            <MetricTile label={t('averageRating')} value={(stats.reviews?.averageRating || 0).toFixed(1)} />
           </div>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden md:grid grid-cols-[minmax(0,1fr)_80px_minmax(0,1.2fr)_110px] gap-4 bg-sand-100 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">
-              <span>Author</span>
-              <span>Rating</span>
-              <span>Target</span>
-              <span>Date</span>
+              <span>{t('author')}</span>
+              <span>{t('rating')}</span>
+              <span>{t('target')}</span>
+              <span>{t('date')}</span>
             </div>
             <div className="divide-y divide-sand-100">
               {platform.reviews.length === 0 ? (
-                <div className="py-10 text-center text-[0.8125rem] text-sand-500">No reviews yet.</div>
+                <div className="py-10 text-center text-[0.8125rem] text-sand-500">{t('noReviews')}</div>
               ) : (
                 platform.reviews.map((item) => (
                   <div key={item._id} className="grid grid-cols-1 gap-2 px-4 py-3 text-[0.85rem] md:grid-cols-[minmax(0,1fr)_80px_minmax(0,1.2fr)_110px] md:items-center md:gap-4">
-                    <span className="font-semibold text-sand-900">{item.author?.name || 'Unknown'}</span>
+                    <span className="font-semibold text-sand-900">{item.author?.name || t('unknown')}</span>
                     <span className="font-semibold text-signal-700 tabular-nums">{item.rating}/5</span>
                     <span className="text-sand-700">
                       {item.targetVehicle
                         ? `${item.targetVehicle.make} ${item.targetVehicle.model}`
-                        : item.targetUser?.name || 'Unknown'}
+                        : item.targetUser?.name || t('unknown')}
                       <span className="block text-[0.74rem] text-sand-500">{item.comment}</span>
                     </span>
                     <span className="text-sand-500">{formatDate(item.createdAt)}</span>
@@ -596,6 +599,7 @@ export default function AdminDashboard() {
 }
 
 function VerificationSection({ title, count, items, type, renderItem }) {
+  const { t } = useTranslation('admin');
   return (
     <div>
       <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-3">
@@ -604,7 +608,7 @@ function VerificationSection({ title, count, items, type, renderItem }) {
       </h2>
       {count === 0 ? (
         <div className="border border-sand-200 rounded-soft py-6 text-center text-[0.8125rem] text-sand-500">
-          No pending {title.toLowerCase()}.
+          {t('noPendingSection', { title })}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

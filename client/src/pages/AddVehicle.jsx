@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import {
@@ -61,21 +62,21 @@ const labelClass =
   'block text-[0.8125rem] font-medium text-sand-700 mb-1.5';
 
 export default function AddVehicle() {
+  const { t, i18n } = useTranslation('addVehicle');
+  const isRTL = i18n.language === 'ar';
   const navigate = useNavigate();
   const [loadingState, setLoadingState] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const defaultGovernorate = 'Alexandria';
-  const defaultCity = 'Alexandria';
-  const defaultCoords = getCityCoordinates(defaultGovernorate, defaultCity) || {
-    lat: 31.2001,
-    lng: 29.9187,
+  const defaultCoords = {
+    lat: 26.8206,
+    lng: 30.8025,
   };
 
   const [mapCenter, setMapCenter] = useState([defaultCoords.lat, defaultCoords.lng]);
-  const [mapZoom, setMapZoom] = useState(13);
-  const [position, setPosition] = useState({ lat: defaultCoords.lat, lng: defaultCoords.lng });
+  const [mapZoom, setMapZoom] = useState(5);
+  const [position, setPosition] = useState(null);
 
   const governorateOptions = useMemo(() => getGovernorateNames(), []);
 
@@ -93,8 +94,8 @@ export default function AddVehicle() {
     has_driver: false,
     driver_cost: 0,
     country: EGYPT_COUNTRY,
-    governorate: defaultGovernorate,
-    city: defaultCity,
+    governorate: '',
+    city: '',
     address: '',
   });
 
@@ -127,20 +128,22 @@ export default function AddVehicle() {
   const handleGovernorateChange = (e) => {
     const governorate = e.target.value;
     const cities = getCitiesByGovernorate(governorate);
-    const firstCity = cities[0]?.name || '';
 
     setFormData((prev) => ({
       ...prev,
       governorate,
-      city: firstCity,
+      city: '',
       address: '',
     }));
+    setPosition(null);
 
     if (cities[0]) {
       const coords = cities[0];
-      setPosition({ lat: coords.lat, lng: coords.lng });
       setMapCenter([coords.lat, coords.lng]);
-      setMapZoom(12);
+      setMapZoom(8);
+    } else {
+      setMapCenter([defaultCoords.lat, defaultCoords.lng]);
+      setMapZoom(5);
     }
   };
 
@@ -182,15 +185,15 @@ export default function AddVehicle() {
     setError(null);
 
     if (imageFiles.length === 0) {
-      setError('Upload at least one vehicle photo.');
+      setError(t('errors.photo'));
       return;
     }
     if (!formData.governorate || !formData.city) {
-      setError('Select a governorate and city for pickup.');
+      setError(t('errors.location'));
       return;
     }
     if (!formData.address) {
-      setError('Click the map to set the exact pickup address.');
+      setError(t('errors.address'));
       return;
     }
 
@@ -203,28 +206,28 @@ export default function AddVehicle() {
     };
 
     try {
-      setLoadingState('Saving vehicle data...');
+      setLoadingState(t('saving'));
 
       const form = new FormData();
       Object.keys(formData).forEach((key) => form.append(key, formData[key]));
-      form.append('lat', position.lat);
-      form.append('lng', position.lng);
+      form.append('lat', position?.lat || defaultCoords.lat);
+      form.append('lng', position?.lng || defaultCoords.lng);
       form.append('primaryIndex', primaryIndex);
       for (let i = 0; i < imageFiles.length; i++) {
         form.append('images', imageFiles[i]);
       }
 
-      const { data: newVehicle } = await axios.post(
+      await axios.post(
         `${API}/api/vehicles`,
         form,
         config
       );
 
-      setSuccess('Vehicle listed successfully.');
+      setSuccess(t('success'));
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       setError(
-        err.response?.data?.message || 'Could not add vehicle. Try again.'
+        err.response?.data?.message || t('errors.submit')
       );
       setLoadingState('');
     }
@@ -249,29 +252,29 @@ export default function AddVehicle() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M10 3 5 8l5 5" />
+              <path d="M10 3 5 8l5 5" className={isRTL ? 'scale-x-[-1] origin-center' : ''} />
             </svg>
-            Back to Dashboard
+            {t('backDashboard')}
           </Link>
           <Link
             to="/explore"
             className="flex items-center gap-1.5 rounded-subtle border border-sand-200 bg-sand-100 px-3 py-1.5 text-[0.8125rem] font-semibold text-sand-700 transition-colors hover:bg-sand-200/70 hover:text-primary-800"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8.5 3 4.5 7l4 4" />
+              <path d="M8.5 3 4.5 7l4 4" className={isRTL ? 'scale-x-[-1] origin-center' : ''} />
               <path d="M5 7h6" />
             </svg>
-            Back to Fleet
+            {t('backFleet')}
           </Link>
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-8 pb-20">
         <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-1">
-          List a Vehicle
+          {t('title')}
         </h1>
         <p className="text-[0.875rem] text-sand-500 mb-8">
-          Add your car to the Zabatly fleet.
+          {t('subtitle')}
         </p>
 
         {/* Feedback banners */}
@@ -290,12 +293,12 @@ export default function AddVehicle() {
           {/* --- Vehicle Details --- */}
           <section>
             <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-4">
-              Vehicle Details
+              {t('details')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="make" className={labelClass}>
-                  Make
+                  {t('make')}
                 </label>
                 <input
                   id="make"
@@ -309,7 +312,7 @@ export default function AddVehicle() {
               </div>
               <div>
                 <label htmlFor="model" className={labelClass}>
-                  Model
+                  {t('model')}
                 </label>
                 <input
                   id="model"
@@ -323,7 +326,7 @@ export default function AddVehicle() {
               </div>
               <div>
                 <label htmlFor="type" className={labelClass}>
-                  Type
+                  {t('type')}
                 </label>
                 <select
                   id="type"
@@ -331,15 +334,15 @@ export default function AddVehicle() {
                   onChange={handleChange}
                   className={selectClass}
                 >
-                  <option value="sedan">Sedan</option>
-                  <option value="suv">SUV</option>
-                  <option value="luxury">Luxury</option>
-                  <option value="minibus">Minibus</option>
+                  <option value="sedan">{t('options.sedan')}</option>
+                  <option value="suv">{t('options.suv')}</option>
+                  <option value="luxury">{t('options.luxury')}</option>
+                  <option value="minibus">{t('options.minibus')}</option>
                 </select>
               </div>
               <div>
                 <label htmlFor="transmission" className={labelClass}>
-                  Transmission
+                  {t('transmission')}
                 </label>
                 <select
                   id="transmission"
@@ -347,13 +350,13 @@ export default function AddVehicle() {
                   onChange={handleChange}
                   className={selectClass}
                 >
-                  <option value="automatic">Automatic</option>
-                  <option value="manual">Manual</option>
+                  <option value="automatic">{t('options.automatic')}</option>
+                  <option value="manual">{t('options.manual')}</option>
                 </select>
               </div>
               <div>
                 <label htmlFor="fuel" className={labelClass}>
-                  Fuel
+                  {t('fuel')}
                 </label>
                 <select
                   id="fuel"
@@ -361,10 +364,10 @@ export default function AddVehicle() {
                   onChange={handleChange}
                   className={selectClass}
                 >
-                  <option value="petrol">Petrol</option>
-                  <option value="diesel">Diesel</option>
-                  <option value="electric">Electric</option>
-                  <option value="hybrid">Hybrid</option>
+                  <option value="petrol">{t('options.petrol')}</option>
+                  <option value="diesel">{t('options.diesel')}</option>
+                  <option value="electric">{t('options.electric')}</option>
+                  <option value="hybrid">{t('options.hybrid')}</option>
                 </select>
               </div>
               <div className="flex items-end pb-1">
@@ -377,20 +380,20 @@ export default function AddVehicle() {
                     className="w-4 h-4 rounded border-sand-300 text-primary-800 focus:ring-primary-500"
                   />
                   <span className="text-[0.875rem] font-medium text-sand-800">
-                    Air Conditioning
+                    {t('ac')}
                   </span>
                 </label>
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="description" className={labelClass}>
-                  Description
+                  {t('description')}
                 </label>
                 <textarea
                   id="description"
                   name="description"
                   required
                   onChange={handleChange}
-                  placeholder="Condition, features, anything renters should know."
+                  placeholder={t('descriptionPlaceholder')}
                   className={`${inputClass} h-20 resize-none`}
                 />
               </div>
@@ -400,12 +403,12 @@ export default function AddVehicle() {
           {/* --- Pricing --- */}
           <section>
             <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-4">
-              Pricing
+              {t('pricing')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="price_per_day" className={labelClass}>
-                  Daily Rate (EGP)
+                  {t('dailyRate')}
                 </label>
                 <input
                   id="price_per_day"
@@ -419,7 +422,7 @@ export default function AddVehicle() {
               </div>
               <div>
                 <label htmlFor="capacity" className={labelClass}>
-                  Passengers
+                  {t('passengers')}
                 </label>
                 <input
                   id="capacity"
@@ -443,10 +446,10 @@ export default function AddVehicle() {
                 />
                 <div>
                   <span className="text-[0.875rem] font-medium text-sand-900 block">
-                    Offer with a driver
+                    {t('offerDriver')}
                   </span>
                   <span className="text-[0.75rem] text-sand-500">
-                    Check if you can provide a driver with this car.
+                    {t('driverHelp')}
                   </span>
                 </div>
               </label>
@@ -454,7 +457,7 @@ export default function AddVehicle() {
               {formData.has_driver && (
                 <div className="mt-3 pt-3 border-t border-sand-200">
                   <label htmlFor="driver_cost" className={labelClass}>
-                    Driver Cost (EGP/day)
+                    {t('driverCost')}
                   </label>
                   <input
                     id="driver_cost"
@@ -472,16 +475,16 @@ export default function AddVehicle() {
           {/* --- Location --- */}
           <section>
             <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-1">
-              Pickup Location
+              {t('pickupLocation')}
             </h2>
             <p className="text-[0.8125rem] text-sand-500 mb-4">
-              Choose your area, then click the map to pin the exact pickup spot.
+              {t('locationHelp')}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <div>
                 <label htmlFor="country" className={labelClass}>
-                  Country
+                  {t('country')}
                 </label>
                 <select
                   id="country"
@@ -496,7 +499,7 @@ export default function AddVehicle() {
 
               <div>
                 <label htmlFor="governorate" className={labelClass}>
-                  Governorate
+                  {t('governorate')}
                 </label>
                 <select
                   id="governorate"
@@ -506,6 +509,7 @@ export default function AddVehicle() {
                   className={selectClass}
                   required
                 >
+                  <option value="">{t('selectGovernorate')}</option>
                   {governorateOptions.map((name) => (
                     <option key={name} value={name}>
                       {name}
@@ -516,7 +520,7 @@ export default function AddVehicle() {
 
               <div>
                 <label htmlFor="city" className={labelClass}>
-                  City
+                  {t('city')}
                 </label>
                 <select
                   id="city"
@@ -525,7 +529,9 @@ export default function AddVehicle() {
                   onChange={handleCityChange}
                   className={selectClass}
                   required
+                  disabled={!formData.governorate}
                 >
+                  <option value="">{t('selectCity')}</option>
                   {cityOptions.map((city) => (
                     <option key={city.name} value={city.name}>
                       {city.name}
@@ -537,7 +543,7 @@ export default function AddVehicle() {
 
             <div className="relative mb-3">
               <label htmlFor="address" className={labelClass}>
-                Exact Address
+                {t('address')}
               </label>
               <input
                 id="address"
@@ -545,7 +551,7 @@ export default function AddVehicle() {
                 name="address"
                 value={formData.address}
                 readOnly
-                placeholder="Click the map to set the exact pickup address"
+                placeholder={t('addressPlaceholder')}
                 className={`${inputClass} bg-sand-50 cursor-default`}
               />
               {geocoding && (
@@ -566,21 +572,21 @@ export default function AddVehicle() {
                 />
                 <MapRecenter center={mapCenter} zoom={mapZoom} />
                 <LocationPicker onLocationSelect={handleLocationSelect} />
-                <Marker position={[position.lat, position.lng]} />
+                {position && <Marker position={[position.lat, position.lng]} />}
               </MapContainer>
             </div>
             <p className="text-[0.7rem] text-sand-400 mt-1.5 tabular-nums">
-              {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
+              {position ? `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}` : t('chooseCityMap')}
             </p>
           </section>
 
           {/* --- Photos --- */}
           <section>
             <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-1">
-              Photos
+              {t('photos')}
             </h2>
             <p className="text-[0.8125rem] text-sand-500 mb-4">
-              Up to 5 images. Click the star to set the main thumbnail.
+              {t('photosHelp')}
             </p>
 
             <label className="flex items-center justify-center gap-2 w-full border border-dashed border-sand-300 rounded-soft py-6 cursor-pointer hover:bg-sand-100 transition-colors">
@@ -599,8 +605,8 @@ export default function AddVehicle() {
               </svg>
               <span className="text-[0.8125rem] font-medium text-sand-500">
                 {imageFiles.length > 0
-                  ? `${imageFiles.length}/5 uploaded`
-                  : 'Choose photos'}
+                  ? t('uploaded', { count: imageFiles.length })
+                  : t('choosePhotos')}
               </span>
               <input
                 type="file"
@@ -624,7 +630,7 @@ export default function AddVehicle() {
                   >
                     <img
                       src={src}
-                      alt={`Photo ${idx + 1}`}
+                      alt={t('photoAlt', { count: idx + 1 })}
                       className="w-full h-20 object-cover"
                     />
                     <button
@@ -635,7 +641,7 @@ export default function AddVehicle() {
                           ? 'bg-primary-800 text-white'
                           : 'bg-sand-50/80 text-sand-400 hover:text-primary-800'
                       }`}
-                      aria-label="Set as primary"
+                      aria-label={t('setPrimary')}
                     >
                       <svg
                         width="10"
@@ -650,7 +656,7 @@ export default function AddVehicle() {
                       type="button"
                       onClick={() => removeImage(idx)}
                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center text-[0.55rem] opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label="Remove photo"
+                      aria-label={t('removePhoto')}
                     >
                       <svg
                         width="8"
@@ -666,7 +672,7 @@ export default function AddVehicle() {
                     </button>
                     {idx === primaryIndex && (
                       <div className="absolute bottom-0 inset-x-0 bg-primary-800 text-white text-[0.55rem] font-semibold text-center py-0.5 uppercase tracking-[0.04em]">
-                        Primary
+                        {t('primary')}
                       </div>
                     )}
                   </div>
@@ -705,7 +711,7 @@ export default function AddVehicle() {
                 {loadingState}
               </>
             ) : (
-              'List Vehicle'
+              t('listVehicle')
             )}
           </button>
         </form>

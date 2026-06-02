@@ -1,0 +1,67 @@
+{
+  "hero": {
+    "considerItDone": "Consider\nit done",
+    "welcomeBack": "Welcome back,",
+    "readyForNextRide": "Ready for your next ride?",
+    "rentOnTerms": "Rent a car on your terms.",
+    "simpleFast": "Simple, fast, and hassle-free.",
+    "bookNow": "Book now",
+    "rentACar": "Rent a car",
+    "goToDashboard": "Go To Dashboard",
+    "browseCars": "Browse cars",
+    "insured": "Insured",
+    "andSafe": "and safe",
+    "support247": "24/7",
+    "support": "Support",
+    "flexible": "Flexible",
+    "rental": "Rental",
+    "heroImageAlt": "Young Egyptians enjoying a day out by their car in Cairo"
+  },
+  "howItWorks": {
+    "title": "Three simple steps",
+    "subtitle": "From search to steering wheel in under two minutes.",
+    "step1Title": "Tell us what you need",
+    "step1Desc": "Share your trip details, preferences, and budget. Takes less than a minute.",
+    "step2Title": "We find your perfect match",
+    "step2Desc": "Our AI analyzes hundreds of options and picks the best vehicles and drivers for you.",
+    "step3Title": "Book and drive",
+    "step3Desc": "Confirm your booking, pick up your car, and enjoy the journey. We handle the rest."
+  },
+  "aiShowcase": {
+    "title": "Tell us what you need.",
+    "subtitle": "We match you with the right car based on your trip, your budget, and what renters like you loved most.",
+    "you": "You",
+    "zabatly": "Zabatly",
+    "userMessage": "I need a car for a weekend trip to Ain Sokhna. Two passengers, automatic transmission, something budget-friendly with good reviews.",
+    "zabatlyReply": "Found 3 great options for your Ain Sokhna weekend. All automatic, well-reviewed, and within your budget. Here are my top picks:",
+    "tryItYourself": "Try it yourself",
+    "bestValue": "Best value for coastal trips",
+    "highestRated": "Highest rated by similar renters",
+    "availableWeekend": "Available this weekend"
+  },
+  "featuredVehicles": {
+    "title": "Featured vehicles",
+    "subtitle": "Top picks rated by real renters.",
+    "viewAll": "View all",
+    "viewAllVehicles": "View all vehicles",
+    "noVehicles": "No vehicles available right now. Check back soon.",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right"
+  },
+  "faq": {
+    "title": "Common questions",
+    "subtitle": "Everything you need to know before your first ride.",
+    "q1": "How does booking work?",
+    "a1": "Browse vehicles, pick your dates, and confirm. You can pay online or on pickup. The whole process takes under two minutes.",
+    "q2": "What documents do I need?",
+    "a2": "A valid national ID or passport, and a driver's license. We verify your identity through our secure OCR system during registration.",
+    "q3": "Can I choose my own driver?",
+    "a3": "Yes. Browse driver profiles with ratings and reviews, or let our AI recommend the best match based on your trip type and preferences.",
+    "q4": "What's the cancellation policy?",
+    "a4": "Free cancellation up to 48 hours before your pickup time. After that, a small fee applies. No hidden charges.",
+    "q5": "How does pricing work?",
+    "a5": "Prices are per day and shown upfront with no hidden fees. The total includes insurance and basic coverage. Extra services are clearly listed.",
+    "q6": "Is my data safe?",
+    "a6": "Your identity documents are processed securely and never shared. We use encrypted storage and follow data protection best practices."
+  }
+}

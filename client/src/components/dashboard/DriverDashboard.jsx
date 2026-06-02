@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import DashboardShell from './DashboardShell';
 import { API } from '../../config/api';
 
@@ -13,15 +14,18 @@ const statusColors = {
   expired: 'bg-sand-100 text-sand-600 border border-sand-200',
 };
 
-const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold capitalize ${
-      statusColors[status] || statusColors.cancelled
-    }`}
-  >
-    {status}
-  </span>
-);
+const StatusBadge = ({ status }) => {
+  const { t } = useTranslation('dashboard');
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold capitalize ${
+        statusColors[status] || statusColors.cancelled
+      }`}
+    >
+      {t(`status.${status}`, status)}
+    </span>
+  );
+};
 
 const displayStatus = (booking, now = new Date()) => {
   if (booking.status === 'active' || booking.status === 'completed') return booking.status;
@@ -84,6 +88,7 @@ const driverStatusStyles = {
 };
 
 export default function DriverDashboard({ user, returnTarget = null }) {
+  const { t } = useTranslation('dashboard');
   const [section, setSection] = useState('overview');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +105,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
         const { data } = await axios.get(`${API}/api/bookings`, config);
         setBookings(data || []);
       } catch {
-        setError('Could not load your assignments.');
+        setError(t('driver.loadError'));
       } finally {
         setLoading(false);
       }
@@ -147,7 +152,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       localStorage.setItem('userInfo', JSON.stringify(stored));
       setDriverStatus(data.driverStatus);
     } catch {
-      setError('Could not save settings.');
+      setError(t('driver.saveError'));
     } finally {
       setSaving(false);
     }
@@ -171,7 +176,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
         setDriverStatus('busy');
       }
     } catch {
-      setError('Failed to update job status.');
+      setError(t('driver.updateError'));
     }
   };
 
@@ -193,14 +198,14 @@ export default function DriverDashboard({ user, returnTarget = null }) {
         setDriverStatus('busy');
       }
     } catch {
-      setError('Could not finish the ride.');
+      setError(t('driver.finishError'));
     }
   };
 
   const navItems = [
     {
       id: 'overview',
-      label: 'Overview',
+      label: t('common.overview'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2" width="5" height="5" rx="1" />
@@ -212,7 +217,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
     },
     {
       id: 'requests',
-      label: 'Requests',
+      label: t('driver.requests'),
       badge: pendingJobs.length || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -222,7 +227,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
     },
     {
       id: 'schedule',
-      label: 'Schedule',
+      label: t('driver.schedule'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
@@ -232,7 +237,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
     },
     {
       id: 'earnings',
-      label: 'Earnings',
+      label: t('driver.earnings'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 12l3-4 3 2 4-6" />
@@ -245,7 +250,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
   const bottomActions = [
     {
       id: 'profile',
-      label: 'Profile',
+      label: t('common.profile'),
       href: '/profile',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -261,10 +266,10 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       <div className="flex items-center gap-2">
         <span className={`inline-block h-2.5 w-2.5 rounded-full ${visibleStatusStyle.dot}`} />
         <span className="text-[0.8125rem] font-semibold text-sand-800">
-          {visibleStatusStyle.label}
+          {t(`status.${visibleDriverStatus}`, visibleStatusStyle.label)}
         </span>
         <span className={`rounded-subtle border px-2 py-0.5 text-[0.7rem] font-semibold ${visibleStatusStyle.badge}`}>
-          {visibleStatusStyle.helper}
+          {visibleDriverStatus === 'online' ? t('driver.availableForBooking') : visibleDriverStatus === 'busy' ? t('driver.notAccepting') : t('driver.hidden')}
         </span>
       </div>
       {activeJob && (
@@ -273,7 +278,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-[0.8125rem] text-sand-700">
-              Driving for {activeJob.renter?.name || 'Client'}
+              {t('driver.drivingFor', { name: activeJob.renter?.name || t('common.client') })}
             </span>
           </div>
         </>
@@ -295,7 +300,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
         <div className="bg-red-50 border border-red-200 text-red-700 text-[0.8125rem] px-4 py-2.5 rounded-subtle mb-5">
           {error}
           <button onClick={() => setError(null)} className="ml-3 font-semibold underline">
-            Dismiss
+            {t('common.dismiss')}
           </button>
         </div>
       )}
@@ -304,7 +309,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       {section === 'overview' && (
         <div className="space-y-6">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Driver Dashboard
+            {t('driver.dashboard')}
           </h1>
 
           {/* Settings bar */}
@@ -312,11 +317,11 @@ export default function DriverDashboard({ user, returnTarget = null }) {
             <div className="space-y-3">
               <div>
                 <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-1">
-                  Current Status
+                  {t('driver.currentStatus')}
                 </p>
                 <div className={`inline-flex items-center gap-2 rounded-subtle border px-3 py-2 text-[0.8125rem] font-semibold ${visibleStatusStyle.badge}`}>
                   <span className={`h-2.5 w-2.5 rounded-full ${visibleStatusStyle.dot}`} />
-                  {visibleStatusStyle.label}
+                  {t(`status.${visibleDriverStatus}`, visibleStatusStyle.label)}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -326,7 +331,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   disabled={saving || hasBlockingJob}
                   className="rounded-subtle bg-green-600 px-3.5 py-2 text-[0.78rem] font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500"
                 >
-                  Go Online
+                  {t('driver.goOnline')}
                 </button>
                 <button
                   type="button"
@@ -334,7 +339,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   disabled={saving || hasBlockingJob}
                   className="rounded-subtle border border-green-200 bg-green-50 px-3.5 py-2 text-[0.78rem] font-semibold text-green-700 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:border-sand-200 disabled:bg-sand-100 disabled:text-sand-500"
                 >
-                  Mark as Available
+                  {t('driver.markAvailable')}
                 </button>
                 <button
                   type="button"
@@ -342,7 +347,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   disabled={saving || hasBlockingJob}
                   className="rounded-subtle border border-red-200 bg-red-50 px-3.5 py-2 text-[0.78rem] font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:border-sand-200 disabled:bg-sand-100 disabled:text-sand-500"
                 >
-                  Mark as Busy
+                  {t('driver.markBusy')}
                 </button>
                 <button
                   type="button"
@@ -350,19 +355,19 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   disabled={saving || hasBlockingJob}
                   className="rounded-subtle border border-sand-200 bg-sand-100 px-3.5 py-2 text-[0.78rem] font-semibold text-sand-700 transition-colors hover:bg-sand-200/70 disabled:cursor-not-allowed disabled:text-sand-500"
                 >
-                  Go Offline
+                  {t('driver.goOffline')}
                 </button>
               </div>
               {hasBlockingJob && (
                 <p className="text-[0.75rem] text-sand-500">
-                  You are Busy while a reservation is pending or active. Complete the trip before going Online.
+                  {t('driver.busyHelp')}
                 </p>
               )}
             </div>
             <div className="flex flex-wrap items-end gap-3">
               <div>
               <label className="block text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-1">
-                Daily Rate (EGP)
+                {t('driver.dailyRate')}
               </label>
               <input
                 type="number"
@@ -376,28 +381,28 @@ export default function DriverDashboard({ user, returnTarget = null }) {
               disabled={saving}
               className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {saving ? 'Saving...' : 'Save Rate'}
+              {saving ? t('driver.saving') : t('driver.saveRate')}
             </button>
             </div>
           </div>
 
           {/* Metrics */}
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
-            <MetricTile label="Earnings" value={`${earnings.toLocaleString()} EGP`} />
-            <MetricTile label="Trips" value={completedJobs.length} />
-            <MetricTile label="Pending" value={pendingJobs.length} accent={pendingJobs.length > 0} />
+            <MetricTile label={t('driver.earnings')} value={`${earnings.toLocaleString()} ${t('common.egp')}`} />
+            <MetricTile label={t('driver.trips')} value={completedJobs.length} />
+            <MetricTile label={t('driver.pending')} value={pendingJobs.length} accent={pendingJobs.length > 0} />
           </div>
 
           {/* Active assignment */}
           {activeJob && (
             <div className="border border-green-200 bg-green-50/50 rounded-soft p-4">
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-green-700 mb-2">
-                Active Assignment
+                {t('driver.activeAssignment')}
               </p>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="min-w-0">
                   <p className="text-[0.95rem] font-semibold text-sand-900">
-                    Driving for {activeJob.renter?.name || 'Client'}
+                    {t('driver.drivingFor', { name: activeJob.renter?.name || t('common.client') })}
                   </p>
                   <p className="text-[0.8125rem] text-sand-600">
                     {activeJob.vehicle
@@ -412,19 +417,19 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                       : '—'}
                   </p>
                   <p className="text-[0.95rem] font-bold text-sand-900 mt-1 tabular-nums">
-                    {activeJob.totalPrice?.toLocaleString()} EGP
+                    {activeJob.totalPrice?.toLocaleString()} {t('common.egp')}
                   </p>
                   <p className="mt-1 text-[0.8125rem] text-sand-600">
-                    {activeJob.routeDescription || 'Pickup details not added'}
+                    {activeJob.routeDescription || t('driver.pickupMissing')}
                   </p>
                   <p className="mt-1 text-[0.8125rem] font-semibold tabular-nums text-green-700">
-                    Time left: {formatCountdown(activeJob.endDate, now)}
+                    {t('driver.timeLeft', { time: formatCountdown(activeJob.endDate, now) })}
                   </p>
                 </div>
                 {activeJob.renter?.phone && (
                   <div className="flex flex-wrap gap-2">
                     <a href={`tel:${activeJob.renter.phone}`} className="rounded-subtle border border-sand-200 bg-sand-50 px-3 py-2 text-[0.75rem] font-semibold text-primary-700 transition-colors hover:bg-sand-100">
-                      Call renter
+                      {t('driver.callRenter')}
                     </a>
                     <a href={`https://wa.me/${activeJob.renter.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="rounded-subtle border border-green-200 bg-green-50 px-3 py-2 text-[0.75rem] font-semibold text-green-700 transition-colors hover:bg-green-100">
                       WhatsApp
@@ -435,7 +440,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   onClick={() => finishRide(activeJob._id)}
                   className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-5 py-2.5 rounded-subtle hover:bg-primary-900 transition-colors"
                 >
-                  Finish Ride
+                  {t('driver.finishRide')}
                 </button>
               </div>
             </div>
@@ -446,13 +451,13 @@ export default function DriverDashboard({ user, returnTarget = null }) {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[0.95rem] font-semibold text-sand-900">
-                  Incoming Requests
+                  {t('driver.incomingRequests')}
                 </h2>
                 <button
                   onClick={() => setSection('requests')}
                   className="text-[0.75rem] font-medium text-primary-600 hover:text-primary-800 transition-colors"
                 >
-                  View all
+                  {t('common.viewAll')}
                 </button>
               </div>
               <div className="space-y-2">
@@ -476,12 +481,12 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                 }`}
               />
               <p className="text-[0.95rem] font-semibold text-sand-800">
-                {visibleDriverStatus === 'online' ? 'Online, waiting for requests' : visibleDriverStatus === 'busy' ? 'You are marked busy' : 'You are offline'}
+                {visibleDriverStatus === 'online' ? t('driver.onlineWaiting') : visibleDriverStatus === 'busy' ? t('driver.markedBusy') : t('driver.offline')}
               </p>
               <p className="text-[0.8125rem] text-sand-500 mt-1">
                 {visibleDriverStatus === 'online'
-                  ? 'New requests will appear here.'
-                  : 'Go online when you are ready to receive ride requests.'}
+                  ? t('driver.newRequestsHere')
+                  : t('driver.goOnlineReady')}
               </p>
             </div>
           )}
@@ -492,11 +497,11 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       {section === 'requests' && (
         <div>
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Ride Requests
+            {t('driver.rideRequests')}
           </h1>
           {pendingJobs.length === 0 ? (
             <div className="border border-sand-200 rounded-soft py-10 text-center text-[0.8125rem] text-sand-500">
-              No pending requests right now.
+              {t('driver.noRequests')}
             </div>
           ) : (
             <div className="space-y-2">
@@ -517,12 +522,12 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       {section === 'schedule' && (
         <div>
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Schedule
+            {t('driver.schedule')}
           </h1>
           {myJobs.filter((b) => ['active', 'pending', 'confirmed'].includes(b.status))
             .length === 0 ? (
             <div className="border border-sand-200 rounded-soft py-10 text-center text-[0.8125rem] text-sand-500">
-              No upcoming assignments.
+              {t('driver.noAssignments')}
             </div>
           ) : (
             <div className="border border-sand-200 rounded-soft overflow-hidden divide-y divide-sand-100">
@@ -535,7 +540,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-[0.875rem] font-medium text-sand-900">
-                        {b.renter?.name || 'Client'}
+                        {b.renter?.name || t('common.client')}
                       </p>
                       <p className="text-[0.75rem] text-sand-500">
                         {b.startDate
@@ -564,7 +569,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                     </div>
                     <StatusBadge status={displayStatus(b, now)} />
                     <span className="text-[0.875rem] font-semibold text-sand-900 tabular-nums">
-                      {b.totalPrice?.toLocaleString()} EGP
+                      {b.totalPrice?.toLocaleString()} {t('common.egp')}
                     </span>
                   </div>
                 ))}
@@ -577,25 +582,25 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       {section === 'earnings' && (
         <div>
           <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
-            Earnings
+            {t('driver.earnings')}
           </h1>
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200 mb-6">
-            <MetricTile label="Total Earned" value={`${earnings.toLocaleString()} EGP`} />
-            <MetricTile label="Completed Rides" value={completedJobs.length} />
+            <MetricTile label={t('driver.totalEarned')} value={`${earnings.toLocaleString()} ${t('common.egp')}`} />
+            <MetricTile label={t('driver.completedRides')} value={completedJobs.length} />
           </div>
 
           <h2 className="text-[0.95rem] font-semibold text-sand-900 mb-3">
-            Ride History
+            {t('driver.rideHistory')}
           </h2>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_100px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
-              <span>Client</span>
-              <span>Date</span>
-              <span className="text-right">Payout</span>
+              <span>{t('common.client')}</span>
+              <span>{t('owner.date')}</span>
+              <span className="text-right">{t('driver.payout')}</span>
             </div>
             {completedJobs.length === 0 ? (
               <div className="py-10 text-center text-[0.8125rem] text-sand-500">
-                No completed rides yet.
+                {t('driver.noRides')}
               </div>
             ) : (
               <div className="divide-y divide-sand-100">
@@ -605,7 +610,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                     className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_100px] gap-2 md:gap-4 items-center px-4 py-3"
                   >
                     <span className="text-[0.875rem] text-sand-800">
-                      {b.renter?.name || 'Client'}
+                      {b.renter?.name || t('common.client')}
                     </span>
                     <span className="text-[0.8125rem] text-sand-600">
                       {b.endDate
@@ -617,7 +622,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                         : '—'}
                     </span>
                     <span className="text-[0.875rem] font-semibold text-sand-900 md:text-right tabular-nums">
-                      {b.totalPrice?.toLocaleString()} EGP
+                      {b.totalPrice?.toLocaleString()} {t('common.egp')}
                     </span>
                   </div>
                 ))}
@@ -631,6 +636,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
 }
 
 function JobRequestRow({ booking: b, onAccept, onDecline }) {
+  const { t } = useTranslation('dashboard');
   const phone = b.renter?.phone;
   const whatsapp = phone ? phone.replace(/\D/g, '') : '';
 
@@ -639,15 +645,15 @@ function JobRequestRow({ booking: b, onAccept, onDecline }) {
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-[0.875rem] font-medium text-sand-900">
-            {b.renter?.name || 'Client'}
+            {b.renter?.name || t('common.client')}
           </p>
           <StatusBadge status={displayStatus(b)} />
         </div>
         <p className="text-[0.75rem] text-sand-500">
-          {phone || 'No phone added'}
+          {phone || t('driver.noPhone')}
         </p>
         <p className="text-[0.8125rem] font-semibold text-sand-800 mt-0.5 tabular-nums">
-          {b.totalPrice?.toLocaleString()} EGP
+          {b.totalPrice?.toLocaleString()} {t('common.egp')}
         </p>
       </div>
       <div className="min-w-0">
@@ -655,10 +661,10 @@ function JobRequestRow({ booking: b, onAccept, onDecline }) {
           {formatDateTime(b.startDate)} to {formatDateTime(b.endDate)}
         </p>
         <p className="mt-0.5 text-[0.75rem] leading-5 text-sand-500">
-          {b.routeDescription || 'Pickup details not added'}
+          {b.routeDescription || t('driver.pickupMissing')}
         </p>
         <p className="mt-0.5 text-[0.75rem] font-semibold text-sand-700">
-          Duration: {formatDuration(b.startDate, b.endDate)}
+          {t('driver.duration', { duration: formatDuration(b.startDate, b.endDate) })}
         </p>
       </div>
       <div className="flex gap-2 flex-shrink-0">
@@ -668,7 +674,7 @@ function JobRequestRow({ booking: b, onAccept, onDecline }) {
               href={`tel:${phone}`}
               className="text-[0.75rem] font-semibold text-primary-700 bg-sand-100 border border-sand-200 px-3.5 py-1.5 rounded-subtle hover:bg-sand-200/60 transition-colors"
             >
-              Call
+              {t('driver.call')}
             </a>
             {whatsapp && (
               <a
@@ -686,13 +692,13 @@ function JobRequestRow({ booking: b, onAccept, onDecline }) {
           onClick={onAccept}
           className="text-[0.75rem] font-semibold bg-primary-800 text-white px-3.5 py-1.5 rounded-subtle hover:bg-primary-900 transition-colors"
         >
-          Accept
+          {t('common.accept')}
         </button>
         <button
           onClick={onDecline}
           className="text-[0.75rem] font-semibold text-sand-600 bg-sand-100 border border-sand-200 px-3.5 py-1.5 rounded-subtle hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition-colors"
         >
-          Decline
+          {t('common.decline')}
         </button>
       </div>
     </div>

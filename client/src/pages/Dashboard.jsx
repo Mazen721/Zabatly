@@ -3,14 +3,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import RenterDashboard from '../components/dashboard/RenterDashboard';
 import OwnerDashboard from '../components/dashboard/OwnerDashboard';
 import DriverDashboard from '../components/dashboard/DriverDashboard';
+import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation('common');
   const returnTarget = {
     href: location.state?.from || '/explore',
-    label: location.state?.label || 'Fleet',
+    label: location.state?.label || t('nav.fleet'),
   };
   const initialSection = location.state?.section;
 

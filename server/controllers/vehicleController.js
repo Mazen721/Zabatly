@@ -64,7 +64,7 @@ const createVehicle = async (req, res) => {
       imagePaths.unshift(primary);
     }
 
-    const parsedAddress = address || 'Alexandria, Egypt';
+    const parsedAddress = String(address || '').trim() || 'Location not set';
 
     const vehicle = new Vehicle({
       owner: req.user._id,
@@ -83,8 +83,8 @@ const createVehicle = async (req, res) => {
       city: city || '',
       address: parsedAddress,
       location: {
-        lat: Number(lat) || 31.2001,
-        lng: Number(lng) || 29.9187,
+        lat: Number(lat) || 26.8206,
+        lng: Number(lng) || 30.8025,
       },
 
       has_driver: has_driver === 'yes' || has_driver === 'true' || has_driver === true,

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import DashboardShell from '../components/dashboard/DashboardShell';
 import { API } from '../config/api';
+import { useTranslation } from 'react-i18next';
 
 function joinList(value) {
   return Array.isArray(value) ? value.join(', ') : value || '';
@@ -85,6 +86,7 @@ function createCroppedAvatar(sourceUrl, crop) {
 }
 
 export default function Profile() {
+  const { t } = useTranslation('profile');
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [section, setSection] = useState('account');
@@ -243,7 +245,7 @@ export default function Profile() {
         setProfileDetails(getProfileDetails(fresh));
         setPreview(getProfilePictureUrl(fresh.profilePicture));
       } catch {
-        showToast('Could not refresh profile details.', 'error');
+        showToast(t('refreshError'), 'error');
       }
     };
 
@@ -302,9 +304,9 @@ export default function Profile() {
       setPreview(getProfilePictureUrl(data.profilePicture));
       setFile(null);
       setRemoveProfilePicture(false);
-      showToast('Profile updated.');
+      showToast(t('profileUpdated'));
     } catch (err) {
-      showToast(err.response?.data?.message || 'Could not save profile. Try again.', 'error');
+      showToast(err.response?.data?.message || t('profileSaveError'), 'error');
     } finally {
       setSaving(false);
     }
@@ -313,7 +315,7 @@ export default function Profile() {
   // --- KYC Submit ---
   const handleKycSubmit = async (e) => {
     e.preventDefault();
-    if (!kycFile) return showToast('Select a document image first.', 'error');
+    if (!kycFile) return showToast(t('selectDocFirst'), 'error');
 
     const formData = new FormData();
     formData.append('file', kycFile);
@@ -371,7 +373,7 @@ export default function Profile() {
     const updated = { ...user, role: 'agency' };
     localStorage.setItem('userInfo', JSON.stringify(updated));
     setUser(updated);
-    showToast('You are now a vehicle host.');
+    showToast(t('youAreHost'));
     setTimeout(() => window.location.reload(), 1500);
   };
 
@@ -384,7 +386,7 @@ export default function Profile() {
       localStorage.removeItem('userInfo');
       navigate('/');
     } catch {
-      showToast('Could not delete account.', 'error');
+      showToast(t('deleteError'), 'error');
     }
   };
 
@@ -413,7 +415,7 @@ export default function Profile() {
       URL.revokeObjectURL(cropSource);
       setCropSource(null);
     } catch {
-      showToast('Could not crop this image. Try another photo.', 'error');
+      showToast(t('cropError'), 'error');
     }
   };
 
@@ -471,7 +473,7 @@ export default function Profile() {
   const navItems = [
     {
       id: 'account',
-      label: 'Account',
+      label: t('account'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="8" cy="5" r="3" />
@@ -481,7 +483,7 @@ export default function Profile() {
     },
     {
       id: 'verification',
-      label: 'Verification',
+      label: t('verification'),
       badge: isFullyVerified ? null : 1,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -493,7 +495,7 @@ export default function Profile() {
     { id: 'div1', type: 'divider', label: '' },
     {
       id: 'danger',
-      label: 'Danger Zone',
+      label: t('dangerZone'),
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M8 6v3M8 11h.01" />
@@ -506,7 +508,7 @@ export default function Profile() {
   const bottomActions = [
     {
       id: 'dashboard',
-      label: 'Dashboard',
+      label: t('dashboard'),
       href: user.role === 'admin' ? '/admin' : '/dashboard',
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -546,9 +548,9 @@ export default function Profile() {
           <div className="w-full max-w-md rounded-soft border border-sand-200 bg-sand-50 p-5 shadow-xl shadow-primary-950/15">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-[1rem] font-semibold text-sand-950">Crop Profile Picture</h2>
+                <h2 className="text-[1rem] font-semibold text-sand-950">{t('cropTitle')}</h2>
                 <p className="mt-1 text-[0.8125rem] text-sand-500">
-                  Drag the photo inside the circle and use the zoom slider.
+                  {t('cropDesc')}
                 </p>
               </div>
               <button
@@ -668,7 +670,7 @@ export default function Profile() {
       {/* === ACCOUNT === */}
       {section === 'account' && (
         <div className="max-w-xl space-y-6">
-          <h1 className="text-[1.25rem] font-semibold text-sand-950">Account</h1>
+          <h1 className="text-[1.25rem] font-semibold text-sand-950">{t('account')}</h1>
 
           {/* Profile header */}
           <div className="flex items-center gap-4">
@@ -707,11 +709,11 @@ export default function Profile() {
               <p className="text-[0.8125rem] text-sand-500 truncate">{user.email}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold uppercase bg-primary-50 text-primary-700 border border-primary-200">
-                  {user.role === 'agency' ? 'Owner' : user.role}
+                  {t(`roles.${user.role}`, user.role)}
                 </span>
                 {isFullyVerified && (
                   <span className="inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold bg-green-50 text-green-700 border border-green-200">
-                    Verified
+                    {t('verified')}
                   </span>
                 )}
               </div>
@@ -720,7 +722,7 @@ export default function Profile() {
                   <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M7 2v10M2 7h10" />
                   </svg>
-                  {preview ? 'Change Profile Picture' : 'Add Profile Picture'}
+                  {preview ? t('changeProfilePicture') : t('addProfilePicture')}
                   <input
                     type="file"
                     className="hidden"
@@ -734,7 +736,7 @@ export default function Profile() {
                     onClick={removePicture}
                     className="inline-flex items-center gap-1.5 rounded-subtle border border-red-200 bg-red-50 px-3 py-1.5 text-[0.75rem] font-semibold text-red-700 transition-colors hover:bg-red-100"
                   >
-                    Remove Profile Picture
+                    {t('removeProfilePicture')}
                   </button>
                 )}
               </div>
@@ -744,15 +746,15 @@ export default function Profile() {
           {user.role === 'driver' && (
             <div className="rounded-soft border border-primary-200 bg-primary-50 px-4 py-3">
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-primary-700">
-                Driver coverage
+                {t('driverCoverage')}
               </p>
               <p className="mt-1 text-[1rem] font-semibold text-primary-950">
-                {driverDetails.currentLocation || 'Add your current location'}
+                {driverDetails.currentLocation || t('addLocation')}
               </p>
               <p className="mt-1 text-[0.8125rem] leading-5 text-primary-700">
                 {driverDetails.coveredAreas
-                  ? `Covers ${driverDetails.coveredAreas}`
-                  : 'Add the areas and cities you can cover so renters can find you faster.'}
+                  ? t('coversAreas', { areas: driverDetails.coveredAreas })
+                  : t('addAreasHint')}
               </p>
             </div>
           )}
@@ -761,15 +763,15 @@ export default function Profile() {
           <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
             <div className="flex-1 bg-sand-50 px-4 py-3">
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-0.5">
-                Rating
+                {t('rating')}
               </p>
               <p className="text-[1.1rem] font-bold text-sand-900 tabular-nums">
-                {user.rating || 'New'}
+                {user.rating || t('new')}
               </p>
             </div>
             <div className="flex-1 bg-sand-50 px-4 py-3">
               <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-0.5">
-                Reviews
+                {t('reviews')}
               </p>
               <p className="text-[1.1rem] font-bold text-sand-900 tabular-nums">
                 {user.numReviews || 0}
@@ -782,17 +784,17 @@ export default function Profile() {
             <div className="border border-primary-200 bg-primary-50 rounded-soft p-4 flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[0.875rem] font-semibold text-primary-900">
-                  Become a vehicle host
+                  {t('becomeHost')}
                 </p>
                 <p className="text-[0.8125rem] text-primary-700">
-                  List your cars and start earning.
+                  {t('becomeHostDesc')}
                 </p>
               </div>
               <button
                 onClick={becomeHost}
                 className="flex-shrink-0 bg-primary-800 text-white text-[0.8125rem] font-semibold px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors"
               >
-                Upgrade
+                {t('upgrade')}
               </button>
             </div>
           )}
@@ -801,10 +803,10 @@ export default function Profile() {
           <form onSubmit={handleSaveProfile} className="space-y-4">
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <ProfileInput id="profile-dob" label="Date of birth" type="date" value={profileDetails.dateOfBirth} onChange={(value) => setProfileDetails((prev) => ({ ...prev, dateOfBirth: value }))} />
+              <ProfileInput id="profile-dob" label={t('dateOfBirth')} type="date" value={profileDetails.dateOfBirth} onChange={(value) => setProfileDetails((prev) => ({ ...prev, dateOfBirth: value }))} />
               <div>
                 <label htmlFor="profile-gender" className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5">
-                  Gender
+                  {t('gender')}
                 </label>
                 <select
                   id="profile-gender"
@@ -812,36 +814,36 @@ export default function Profile() {
                   onChange={(e) => setProfileDetails((prev) => ({ ...prev, gender: e.target.value }))}
                   className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
                 >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                  <option value="prefer_not_to_say">Prefer not to say</option>
+                  <option value="">{t('selectGender')}</option>
+                  <option value="male">{t('male')}</option>
+                  <option value="female">{t('female')}</option>
+                  <option value="other">{t('other')}</option>
+                  <option value="prefer_not_to_say">{t('preferNotToSay')}</option>
                 </select>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <ProfileInput id="profile-phone" label="Phone number" type="tel" value={profileDetails.phone} placeholder="01012345678" onChange={(value) => setProfileDetails((prev) => ({ ...prev, phone: value }))} />
-              <ProfileInput id="profile-city" label="Current city" value={profileDetails.city} placeholder="Alexandria" onChange={(value) => setProfileDetails((prev) => ({ ...prev, city: value }))} />
+              <ProfileInput id="profile-phone" label={t('phone')} type="tel" value={profileDetails.phone} placeholder="01012345678" onChange={(value) => setProfileDetails((prev) => ({ ...prev, phone: value }))} />
+              <ProfileInput id="profile-city" label={t('city')} value={profileDetails.city} placeholder={t('cityPlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, city: value }))} />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <ProfileInput id="profile-nationality" label="Nationality" value={profileDetails.nationality} placeholder="Egyptian" onChange={(value) => setProfileDetails((prev) => ({ ...prev, nationality: value }))} />
-              <ProfileInput id="profile-language" label="Preferred language" value={profileDetails.preferredLanguage} placeholder="English" onChange={(value) => setProfileDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
+              <ProfileInput id="profile-nationality" label={t('nationality')} value={profileDetails.nationality} placeholder={t('nationalityPlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, nationality: value }))} />
+              <ProfileInput id="profile-language" label={t('preferredLanguage')} value={profileDetails.preferredLanguage} placeholder={t('languagePlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <ProfileInput id="profile-emergency-name" label="Emergency contact (optional)" value={profileDetails.emergencyContactName} placeholder="Name" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
-              <ProfileInput id="profile-emergency-phone" label="Contact phone (optional)" type="tel" value={profileDetails.emergencyContactPhone} placeholder="Phone" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
-              <ProfileInput id="profile-emergency-relation" label="Relation (optional)" value={profileDetails.emergencyContactRelation} placeholder="Brother" onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
+              <ProfileInput id="profile-emergency-name" label={t('emergencyContact')} value={profileDetails.emergencyContactName} placeholder={t('namePlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
+              <ProfileInput id="profile-emergency-phone" label={t('emergencyPhone')} type="tel" value={profileDetails.emergencyContactPhone} placeholder={t('phonePlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
+              <ProfileInput id="profile-emergency-relation" label={t('emergencyRelation')} value={profileDetails.emergencyContactRelation} placeholder={t('relationPlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
             </div>
 
             {user.role === 'driver' && (
               <div className="space-y-4 border-t border-sand-200 pt-4">
                 <div>
                   <label htmlFor="profile-availability" className="block text-[0.8125rem] font-medium text-sand-700 mb-1.5">
-                    Availability
+                  {t('availability')}
                   </label>
                   <select
                     id="profile-availability"
@@ -849,53 +851,53 @@ export default function Profile() {
                     onChange={(e) => setDriverDetails((prev) => ({ ...prev, availability: e.target.value }))}
                     className="w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.875rem] text-sand-900 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors"
                   >
-                    <option value="">Select availability</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Weekdays">Weekdays</option>
-                    <option value="Weekends">Weekends</option>
-                    <option value="Evenings">Evenings</option>
-                    <option value="Flexible">Flexible</option>
+                    <option value="">{t('selectAvailability')}</option>
+                    <option value="Full-time">{t('fullTime')}</option>
+                    <option value="Weekdays">{t('weekdays')}</option>
+                    <option value="Weekends">{t('weekends')}</option>
+                    <option value="Evenings">{t('evenings')}</option>
+                    <option value="Flexible">{t('flexible')}</option>
                   </select>
                 </div>
 
                 <DriverInput
                   id="profile-covered-areas"
-                  label="Areas / Cities Covered"
+                  label={t('coveredAreas')}
                   value={driverDetails.coveredAreas}
-                  placeholder="Alexandria, Cairo, North Coast"
+                  placeholder={t('coveredAreasPlaceholder')}
                   onChange={(value) => setDriverDetails((prev) => ({ ...prev, coveredAreas: value }))}
                 />
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DriverInput
                     id="profile-driving-experience"
-                    label="Driving Experience"
+                    label={t('drivingExperience')}
                     value={driverDetails.drivingExperience}
-                    placeholder="6 years, airport routes"
+                    placeholder={t('drivingExpPlaceholder')}
                     onChange={(value) => setDriverDetails((prev) => ({ ...prev, drivingExperience: value }))}
                   />
                   <DriverInput
                     id="profile-vehicle-types"
-                    label="Vehicle Types They Can Drive"
+                    label={t('vehicleTypes')}
                     value={driverDetails.vehicleTypes}
-                    placeholder="Sedan, SUV, Van"
+                    placeholder={t('vehicleTypesPlaceholder')}
                     onChange={(value) => setDriverDetails((prev) => ({ ...prev, vehicleTypes: value }))}
                   />
                 </div>
 
                 <DriverInput
                   id="profile-license-info"
-                  label="License Information"
+                  label={t('licenseInfo')}
                   value={driverDetails.licenseInfo}
-                  placeholder="Private license, valid through 2029"
+                  placeholder={t('licensePlaceholder')}
                   onChange={(value) => setDriverDetails((prev) => ({ ...prev, licenseInfo: value }))}
                 />
 
                 <DriverInput
                   id="profile-languages"
-                  label="Languages Spoken"
+                  label={t('languagesSpoken')}
                   value={driverDetails.languagesSpoken}
-                  placeholder="Arabic, English"
+                  placeholder={t('languagesPlaceholder')}
                   onChange={(value) => setDriverDetails((prev) => ({ ...prev, languagesSpoken: value }))}
                 />
               </div>
@@ -906,7 +908,7 @@ export default function Profile() {
               disabled={saving}
               className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-5 py-2.5 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? t('saving') : t('saveChanges')}
             </button>
           </form>
         </div>
@@ -916,26 +918,26 @@ export default function Profile() {
       {section === 'verification' && (
         <div className="max-w-xl space-y-6">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Verification
+            {t('verification')}
           </h1>
 
           {/* Status banner */}
           {isFullyVerified ? (
             <div className="bg-green-50 border border-green-200 rounded-soft px-4 py-3">
               <p className="text-[0.875rem] font-semibold text-green-800">
-                Account verified
+                {t('accountVerified')}
               </p>
               <p className="text-[0.8125rem] text-green-700">
-                All required identity checks for your role are complete.
+                {t('accountVerifiedDesc')}
               </p>
             </div>
           ) : (
             <div className="bg-signal-50 border border-signal-200 rounded-soft px-4 py-3">
               <p className="text-[0.875rem] font-semibold text-signal-800">
-                Verification needed
+                {t('verificationNeeded')}
               </p>
               <p className="text-[0.8125rem] text-signal-700">
-                Complete the checks below to unlock full platform features.
+                {t('verificationNeededDesc')}
               </p>
             </div>
           )}
@@ -944,8 +946,8 @@ export default function Profile() {
           <div className="space-y-2">
             {/* Identity document */}
             <ChecklistItem
-              label="National ID or Passport"
-              description="Required for all users"
+              label={t('nationalIdOrPassport')}
+              description={t('requiredForAll')}
               status={
                 idVerified
                   ? 'verified'
@@ -961,11 +963,11 @@ export default function Profile() {
             {/* Driving license (hidden for owners) */}
             {user.role !== 'agency' && (
               <ChecklistItem
-                label="Driving License"
+              label={t('drivingLicense')}
                 description={
                   user.role === 'driver'
-                    ? 'Required to accept driving jobs'
-                    : 'Required for self-drive rentals'
+                    ? t('requiredForDriverJobs')
+                    : t('requiredForSelfDrive')
                 }
                 status={
                   licenseVerified
@@ -990,7 +992,7 @@ export default function Profile() {
               className="border border-sand-200 rounded-soft p-4 bg-sand-50 space-y-3"
             >
               <p className="text-[0.875rem] font-semibold text-sand-900">
-                Upload document
+                {t('uploadDocument')}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -1000,15 +1002,15 @@ export default function Profile() {
                   className="sm:w-44 bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2.5 text-[0.8125rem] text-sand-800 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                 >
                   {!idVerified && !idPending && (
-                    <option value="national_id">National ID</option>
+                    <option value="national_id">{t('nationalId')}</option>
                   )}
                   {!idVerified && !idPending && (
-                    <option value="passport">Passport</option>
+                    <option value="passport">{t('passport')}</option>
                   )}
                   {!licenseVerified &&
                     !licensePending &&
                     user.role !== 'agency' && (
-                      <option value="driver_license">Driving License</option>
+                      <option value="driver_license">{t('drivingLicense')}</option>
                     )}
                 </select>
 
@@ -1018,7 +1020,7 @@ export default function Profile() {
                     <path d="M1 9.5V12a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9.5" />
                   </svg>
                   <span className="text-[0.8125rem] text-sand-600 truncate">
-                    {kycFile ? kycFile.name : 'Choose file'}
+                    {kycFile ? kycFile.name : t('chooseFile')}
                   </span>
                   <input
                     type="file"
@@ -1034,7 +1036,7 @@ export default function Profile() {
                 disabled={kycLoading}
                 className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-5 py-2.5 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-50"
               >
-                {kycLoading ? 'Scanning...' : 'Upload'}
+                {kycLoading ? t('scanning') : t('upload')}
               </button>
             </form>
           )}
@@ -1045,16 +1047,15 @@ export default function Profile() {
       {section === 'danger' && (
         <div className="max-w-xl space-y-6">
           <h1 className="text-[1.25rem] font-semibold text-sand-950">
-            Danger Zone
+            {t('dangerZone')}
           </h1>
 
           <div className="border border-red-200 rounded-soft p-4 bg-red-50/50">
             <p className="text-[0.875rem] font-semibold text-red-800 mb-1">
-              Delete account
+              {t('deleteAccount')}
             </p>
             <p className="text-[0.8125rem] text-red-700 mb-4">
-              This permanently removes your account, bookings, and all associated
-              data. This action cannot be undone.
+              {t('deleteAccountDesc')}
             </p>
 
             {!confirmDelete ? (
@@ -1062,7 +1063,7 @@ export default function Profile() {
                 onClick={() => setConfirmDelete(true)}
                 className="text-[0.8125rem] font-semibold text-red-700 bg-red-100 border border-red-200 px-4 py-2 rounded-subtle hover:bg-red-200 transition-colors"
               >
-                Delete my account
+                {t('deleteMyAccount')}
               </button>
             ) : (
               <div className="flex items-center gap-3">
@@ -1070,13 +1071,13 @@ export default function Profile() {
                   onClick={deleteAccount}
                   className="text-[0.8125rem] font-semibold bg-red-600 text-white px-4 py-2 rounded-subtle hover:bg-red-700 transition-colors"
                 >
-                  Confirm deletion
+                  {t('confirmDeletion')}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
                   className="text-[0.8125rem] font-medium text-sand-600 hover:text-sand-800 transition-colors"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
               </div>
             )}
@@ -1144,31 +1145,32 @@ function CropSlider({ label, value, min, max, step, onChange }) {
 
 // --- Checklist item ---
 function ChecklistItem({ label, description, status, reason }) {
+  const { t } = useTranslation('profile');
   const styles = {
     verified: {
       dot: 'bg-green-100 text-green-700',
       badge: 'bg-green-50 text-green-700 border border-green-200',
-      text: 'Verified',
+      text: t('statusVerified'),
     },
     pending: {
       dot: 'bg-primary-100 text-primary-700',
       badge: 'bg-primary-50 text-primary-700 border border-primary-200',
-      text: 'Pending',
+      text: t('statusPending'),
     },
     rejected: {
       dot: 'bg-red-100 text-red-700',
       badge: 'bg-red-50 text-red-700 border border-red-200',
-      text: 'Rejected',
+      text: t('statusRejected'),
     },
     missing: {
       dot: 'bg-signal-100 text-signal-700',
       badge: 'bg-signal-50 text-signal-700 border border-signal-200',
-      text: 'Missing',
+      text: t('statusMissing'),
     },
     optional: {
       dot: 'bg-sand-100 text-sand-500',
       badge: 'bg-sand-100 text-sand-500 border border-sand-200',
-      text: 'Optional',
+      text: t('statusOptional'),
     },
   };
 
