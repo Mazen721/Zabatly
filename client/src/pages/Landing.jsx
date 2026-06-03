@@ -237,7 +237,7 @@ export default function Landing() {
         ? '/admin'
         : '/dashboard'
       : '/explore'
-    : '/register';
+    : '/login';
   const primaryCtaLabel = user
     ? dashboardRoles.includes(user.role)
       ? t('hero.goToDashboard')
