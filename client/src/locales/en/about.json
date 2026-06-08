@@ -1,0 +1,48 @@
+{
+  "hero": {
+    "title": "Driving Egypt Forward, Together.",
+    "subtitle": "Zabatly is Egypt's smart car rental platform, powered by AI and designed to make transportation simple, safe, and accessible for everyone."
+  },
+  "story": {
+    "label": "Our Story",
+    "title": "Born from a Real Problem",
+    "p1": "We noticed that renting a car in Egypt was complicated, untrustworthy, and expensive. There had to be a better way.",
+    "p2": "So we built Zabatly: a platform where car owners list their vehicles and renters browse, book, and pay, all in one place. With AI-powered recommendations, identity verification, and a driver marketplace, Zabatly is more than a rental app.",
+    "p3": "Our mission is simple: make transportation accessible, trustworthy, and smart for every Egyptian.",
+    "quote": "We didn't just build an app. We built a bridge between people who have cars and people who need them.",
+    "quoteAuthor": "Zabatly Team",
+    "quoteRole": "Founders"
+  },
+  "why": {
+    "label": "Why Zabatly",
+    "title": "What Makes Us Different",
+    "subtitle": "The features that set Zabatly apart from traditional car rental services.",
+    "item1Title": "AI-Powered Matching",
+    "item1Desc": "Our intelligent assistant analyzes your needs and recommends the best vehicle, price, and availability for your trip.",
+    "item2Title": "Verified Users",
+    "item2Desc": "Every renter and host goes through identity verification. You always know who you're dealing with.",
+    "item3Title": "Driver Marketplace",
+    "item3Desc": "Need a driver? Browse our vetted driver marketplace and book one alongside your vehicle.",
+    "item4Title": "Transparent Pricing",
+    "item4Desc": "No hidden fees. See the full cost upfront with clear daily rates and payment options."
+  },
+  "values": {
+    "label": "Our Values",
+    "title": "What We Stand For",
+    "subtitle": "The principles that guide everything we build.",
+    "trustTitle": "Trust & Safety",
+    "trustDesc": "Every user is verified. Every booking is protected. We take safety seriously so you can rent with confidence.",
+    "speedTitle": "Speed & Simplicity",
+    "speedDesc": "From browsing to booking, everything is designed to be fast, intuitive, and hassle-free.",
+    "aiTitle": "AI-Powered",
+    "aiDesc": "Our intelligent assistant helps you find the perfect car, compare prices, and get personalized recommendations.",
+    "localTitle": "Built for Egypt",
+    "localDesc": "Zabatly understands the Egyptian market: local pricing, Arabic support, and features tailored to local needs."
+  },
+  "cta": {
+    "title": "Ready to Get Started?",
+    "subtitle": "Join Egyptians who trust Zabatly for smarter, safer car rentals.",
+    "browseCars": "Browse Cars",
+    "contactUs": "Contact Us"
+  }
+}

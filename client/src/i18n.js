@@ -16,6 +16,8 @@ import enDashboard from './locales/en/dashboard.json';
 import enAdmin from './locales/en/admin.json';
 import enAddVehicle from './locales/en/addVehicle.json';
 import enAi from './locales/en/ai.json';
+import enContact from './locales/en/contact.json';
+import enAbout from './locales/en/about.json';
 
 // AR namespaces
 import arCommon from './locales/ar/common.json';
@@ -31,6 +33,8 @@ import arDashboard from './locales/ar/dashboard.json';
 import arAdmin from './locales/ar/admin.json';
 import arAddVehicle from './locales/ar/addVehicle.json';
 import arAi from './locales/ar/ai.json';
+import arContact from './locales/ar/contact.json';
+import arAbout from './locales/ar/about.json';
 
 i18n
   .use(LanguageDetector)
@@ -51,6 +55,8 @@ i18n
         admin: enAdmin,
         addVehicle: enAddVehicle,
         ai: enAi,
+        contact: enContact,
+        about: enAbout,
       },
       ar: {
         common: arCommon,
@@ -66,6 +72,8 @@ i18n
         admin: arAdmin,
         addVehicle: arAddVehicle,
         ai: arAi,
+        contact: arContact,
+        about: arAbout,
       },
     },
     defaultNS: 'common',

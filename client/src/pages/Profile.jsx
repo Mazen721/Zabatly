@@ -369,12 +369,24 @@ export default function Profile() {
   };
 
   // --- Become Host ---
+  const [confirmUpgrade, setConfirmUpgrade] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
   const becomeHost = async () => {
-    const updated = { ...user, role: 'agency' };
-    localStorage.setItem('userInfo', JSON.stringify(updated));
-    setUser(updated);
-    showToast(t('youAreHost'));
-    setTimeout(() => window.location.reload(), 1500);
+    try {
+      setUpgrading(true);
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      const { data } = await axios.post(`${API}/api/users/upgrade-to-host`, {}, config);
+      localStorage.setItem('userInfo', JSON.stringify(data));
+      setUser(data);
+      setConfirmUpgrade(false);
+      showToast(t('youAreHost'));
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      showToast(err.response?.data?.message || t('upgradeError'), 'error');
+      setConfirmUpgrade(false);
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   // --- Delete Account ---
@@ -781,21 +793,47 @@ export default function Profile() {
 
           {/* Become a Host (renter only) */}
           {user.role === 'user' && (
-            <div className="border border-primary-200 bg-primary-50 rounded-soft p-4 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[0.875rem] font-semibold text-primary-900">
-                  {t('becomeHost')}
-                </p>
-                <p className="text-[0.8125rem] text-primary-700">
-                  {t('becomeHostDesc')}
-                </p>
+            <div className="border border-primary-200 bg-primary-50 rounded-soft p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[0.875rem] font-semibold text-primary-900">
+                    {t('becomeHost')}
+                  </p>
+                  <p className="text-[0.8125rem] text-primary-700">
+                    {t('becomeHostDesc')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setConfirmUpgrade(true)}
+                  className="flex-shrink-0 bg-primary-800 text-white text-[0.8125rem] font-semibold px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors"
+                >
+                  {t('upgrade')}
+                </button>
               </div>
-              <button
-                onClick={becomeHost}
-                className="flex-shrink-0 bg-primary-800 text-white text-[0.8125rem] font-semibold px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors"
-              >
-                {t('upgrade')}
-              </button>
+
+              {confirmUpgrade && (
+                <div className="mt-3 border-t border-primary-200 pt-3">
+                  <p className="text-[0.8125rem] font-medium text-primary-800 mb-3">
+                    {t('upgradeConfirmMsg')}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={becomeHost}
+                      disabled={upgrading}
+                      className="text-[0.8125rem] font-semibold bg-primary-800 text-white px-4 py-2 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-60"
+                    >
+                      {upgrading ? t('upgrading') : t('confirmUpgrade')}
+                    </button>
+                    <button
+                      onClick={() => setConfirmUpgrade(false)}
+                      disabled={upgrading}
+                      className="text-[0.8125rem] font-medium text-sand-600 hover:text-sand-800 transition-colors"
+                    >
+                      {t('cancel')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

@@ -140,15 +140,287 @@ const EmptyState = ({ message, cta, href }) => (
   </div>
 );
 
+/* ── Confirmation Modal ──────────────────────────────────────── */
+
+function ConfirmDeleteModal({ vehicle, onConfirm, onCancel, t }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-sand-50 border border-sand-200 rounded-soft max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h14M8 6V4a1 1 0 011-1h2a1 1 0 011 1v2M5 6v10a2 2 0 002 2h6a2 2 0 002-2V6" />
+              <path d="M8 10v4M12 10v4" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-[1rem] font-semibold text-sand-950">{t('owner.deleteConfirmTitle')}</h3>
+            <p className="text-[0.8125rem] text-sand-600">
+              {vehicle.make} {vehicle.model}
+            </p>
+          </div>
+        </div>
+        <p className="text-[0.8125rem] text-sand-600 leading-relaxed mb-6">
+          {t('owner.deleteConfirmMessage')}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 text-[0.8125rem] font-semibold text-sand-700 bg-sand-100 border border-sand-200 px-4 py-2.5 rounded-subtle hover:bg-sand-200 transition-colors"
+          >
+            {t('owner.cancelButton')}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 text-[0.8125rem] font-semibold text-white bg-red-600 px-4 py-2.5 rounded-subtle hover:bg-red-700 transition-colors"
+          >
+            {t('owner.deleteConfirmButton')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Toggle Active Confirmation Modal ────────────────────────── */
+
+function ConfirmToggleModal({ vehicle, onConfirm, onCancel, t }) {
+  const isDisabling = vehicle.isActive !== false;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-sand-50 border border-sand-200 rounded-soft max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isDisabling ? 'bg-amber-100' : 'bg-green-100'}`}>
+            {isDisabling ? (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#b45309" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M10 7v3M10 13h.01" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#15803d" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="10" cy="10" r="7" />
+                <path d="M7 10l2 2 4-4" />
+              </svg>
+            )}
+          </div>
+          <div>
+            <h3 className="text-[1rem] font-semibold text-sand-950">
+              {isDisabling ? t('owner.disableConfirmTitle') : t('owner.enableConfirmTitle')}
+            </h3>
+            <p className="text-[0.8125rem] text-sand-600">
+              {vehicle.make} {vehicle.model}
+            </p>
+          </div>
+        </div>
+        <p className="text-[0.8125rem] text-sand-600 leading-relaxed mb-6">
+          {isDisabling ? t('owner.disableConfirmMessage') : t('owner.enableConfirmMessage')}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 text-[0.8125rem] font-semibold text-sand-700 bg-sand-100 border border-sand-200 px-4 py-2.5 rounded-subtle hover:bg-sand-200 transition-colors"
+          >
+            {t('owner.cancelButton')}
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`flex-1 text-[0.8125rem] font-semibold text-white px-4 py-2.5 rounded-subtle transition-colors ${
+              isDisabling
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            {isDisabling ? t('owner.disableConfirmButton') : t('owner.enableConfirmButton')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Edit Vehicle Modal ──────────────────────────────────────── */
+
+const inputClass =
+  'w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2 text-[0.8125rem] text-sand-900 placeholder:text-sand-400 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors';
+
+const selectClass =
+  'w-full bg-sand-100 border border-sand-200 rounded-subtle px-3 py-2 text-[0.8125rem] text-sand-800 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-colors';
+
+const labelClass = 'block text-[0.75rem] font-medium text-sand-600 mb-1';
+
+function EditVehicleModal({ vehicle, onSave, onCancel, saving, t, tVehicle }) {
+  const [form, setForm] = useState({
+    make: vehicle.make || '',
+    model: vehicle.model || '',
+    year: vehicle.year || new Date().getFullYear(),
+    type: vehicle.type || 'sedan',
+    capacity: vehicle.capacity || 4,
+    price_per_day: vehicle.price_per_day || '',
+    transmission: vehicle.transmission || 'automatic',
+    fuel: vehicle.fuel || 'petrol',
+    ac: vehicle.ac !== undefined ? vehicle.ac : true,
+    description: vehicle.description || '',
+    has_driver: vehicle.has_driver || false,
+    driver_cost: vehicle.driver_cost || 0,
+  });
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(vehicle._id, form);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-sand-50 border border-sand-200 rounded-soft max-w-lg w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-[1.05rem] font-semibold text-sand-950">{t('owner.editVehicleTitle')}</h3>
+          <button
+            onClick={onCancel}
+            className="text-sand-400 hover:text-sand-700 transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M5 5l8 8M13 5l-8 8" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>{tVehicle('make')}</label>
+              <input type="text" name="make" value={form.make} onChange={handleChange} required className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>{tVehicle('model')}</label>
+              <input type="text" name="model" value={form.model} onChange={handleChange} required className={inputClass} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className={labelClass}>{tVehicle('year')}</label>
+              <input type="number" name="year" value={form.year} onChange={handleChange} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>{tVehicle('type')}</label>
+              <select name="type" value={form.type} onChange={handleChange} className={selectClass}>
+                <option value="sedan">{tVehicle('options.sedan')}</option>
+                <option value="suv">{tVehicle('options.suv')}</option>
+                <option value="luxury">{tVehicle('options.luxury')}</option>
+                <option value="minibus">{tVehicle('options.minibus')}</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>{tVehicle('passengers')}</label>
+              <input type="number" name="capacity" value={form.capacity} onChange={handleChange} className={inputClass} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>{tVehicle('transmission')}</label>
+              <select name="transmission" value={form.transmission} onChange={handleChange} className={selectClass}>
+                <option value="automatic">{tVehicle('options.automatic')}</option>
+                <option value="manual">{tVehicle('options.manual')}</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>{tVehicle('fuel')}</label>
+              <select name="fuel" value={form.fuel} onChange={handleChange} className={selectClass}>
+                <option value="petrol">{tVehicle('options.petrol')}</option>
+                <option value="diesel">{tVehicle('options.diesel')}</option>
+                <option value="electric">{tVehicle('options.electric')}</option>
+                <option value="hybrid">{tVehicle('options.hybrid')}</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>{tVehicle('dailyRate')}</label>
+            <input type="number" name="price_per_day" value={form.price_per_day} onChange={handleChange} required className={`${inputClass} font-semibold tabular-nums`} />
+          </div>
+
+          <div>
+            <label className={labelClass}>{tVehicle('description')}</label>
+            <textarea name="description" value={form.description} onChange={handleChange} required className={`${inputClass} h-20 resize-none`} />
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <input type="checkbox" name="ac" checked={form.ac} onChange={handleChange} className="w-4 h-4 rounded border-sand-300 text-primary-800 focus:ring-primary-500" />
+            <span className="text-[0.8125rem] font-medium text-sand-800">{tVehicle('ac')}</span>
+          </div>
+
+          <div className="border border-sand-200 rounded-subtle p-3 bg-sand-50/50">
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" name="has_driver" checked={form.has_driver} onChange={handleChange} className="w-4 h-4 rounded border-sand-300 text-primary-800 focus:ring-primary-500" />
+              <span className="text-[0.8125rem] font-medium text-sand-900">{tVehicle('offerDriver')}</span>
+            </label>
+            {form.has_driver && (
+              <div className="mt-2 pt-2 border-t border-sand-200">
+                <label className={labelClass}>{tVehicle('driverCost')}</label>
+                <input type="number" name="driver_cost" value={form.driver_cost} onChange={handleChange} className={`${inputClass} font-semibold tabular-nums`} />
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onCancel} className="flex-1 text-[0.8125rem] font-semibold text-sand-700 bg-sand-100 border border-sand-200 px-4 py-2.5 rounded-subtle hover:bg-sand-200 transition-colors">
+              {t('owner.cancelButton')}
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 text-[0.8125rem] font-semibold text-white bg-primary-800 px-4 py-2.5 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  {t('owner.savingChanges')}
+                </>
+              ) : (
+                t('owner.saveChanges')
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Owner Dashboard ────────────────────────────────────── */
+
 export default function OwnerDashboard({ user, returnTarget = null }) {
   const { t, i18n } = useTranslation('dashboard');
+  const { t: tVehicle } = useTranslation('addVehicle');
   const locale = i18n.language === 'ar' ? 'ar-EG' : 'en-GB';
   const [section, setSection] = useState('overview');
   const [bookings, setBookings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [now, setNow] = useState(() => new Date());
+
+  // Modal state
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toggleTarget, setToggleTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -156,11 +428,11 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         const config = { headers: { Authorization: `Bearer ${user.token}` } };
         const [bRes, vRes] = await Promise.all([
           axios.get(`${API}/api/bookings`, config),
-          axios.get(`${API}/api/vehicles`),
+          axios.get(`${API}/api/vehicles?ownerView=true`),
         ]);
         const allBookings = bRes.data || [];
         const ownVehicles = (vRes.data || []).filter(
-          (v) => v.owner?._id === user._id || v.owner === user._id
+          (v) => (v.owner?._id === user._id || v.owner === user._id) && !v.isDeleted
         );
         setBookings(allBookings);
         setVehicles(ownVehicles);
@@ -200,7 +472,8 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       .map((id) => id.toString())
   );
   const rentedCount = rentedVehicleIds.size;
-  const availableCount = Math.max(vehicles.length - rentedCount, 0);
+  const activeVehicles = vehicles.filter((v) => v.isActive !== false);
+  const availableCount = Math.max(activeVehicles.length - rentedCount, 0);
 
   const updateStatus = async (id, status) => {
     try {
@@ -223,8 +496,50 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         headers: { Authorization: `Bearer ${user.token}` },
       });
       setVehicles((prev) => prev.filter((v) => v._id !== vehicleId));
+      setDeleteTarget(null);
+      setSuccess(t('common.deleted'));
+      setTimeout(() => setSuccess(null), 3000);
     } catch {
       setError(t('owner.removeError'));
+      setDeleteTarget(null);
+    }
+  };
+
+  const toggleActive = async (vehicleId) => {
+    try {
+      const { data } = await axios.put(
+        `${API}/api/vehicles/${vehicleId}/toggle-active`,
+        {},
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      setVehicles((prev) =>
+        prev.map((v) => (v._id === vehicleId ? { ...v, isActive: data.isActive } : v))
+      );
+      setToggleTarget(null);
+    } catch {
+      setError(t('owner.toggleError'));
+      setToggleTarget(null);
+    }
+  };
+
+  const editVehicle = async (vehicleId, formData) => {
+    setSaving(true);
+    try {
+      const { data } = await axios.put(
+        `${API}/api/vehicles/${vehicleId}`,
+        formData,
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      setVehicles((prev) =>
+        prev.map((v) => (v._id === vehicleId ? { ...v, ...data } : v))
+      );
+      setEditTarget(null);
+      setSuccess(t('owner.editSuccess'));
+      setTimeout(() => setSuccess(null), 3000);
+    } catch {
+      setError(t('owner.editError'));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -349,12 +664,46 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
       bottomActions={bottomActions}
       returnTarget={returnTarget}
     >
+      {/* Modals */}
+      {deleteTarget && (
+        <ConfirmDeleteModal
+          vehicle={deleteTarget}
+          onConfirm={() => deleteVehicle(deleteTarget._id)}
+          onCancel={() => setDeleteTarget(null)}
+          t={t}
+        />
+      )}
+      {toggleTarget && (
+        <ConfirmToggleModal
+          vehicle={toggleTarget}
+          onConfirm={() => toggleActive(toggleTarget._id)}
+          onCancel={() => setToggleTarget(null)}
+          t={t}
+        />
+      )}
+      {editTarget && (
+        <EditVehicleModal
+          vehicle={editTarget}
+          onSave={editVehicle}
+          onCancel={() => setEditTarget(null)}
+          saving={saving}
+          t={t}
+          tVehicle={tVehicle}
+        />
+      )}
+
+      {/* Feedback */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-[0.8125rem] px-4 py-2.5 rounded-subtle mb-5">
           {error}
           <button onClick={() => setError(null)} className="ml-3 font-semibold underline">
             {t('common.dismiss')}
           </button>
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 text-[0.8125rem] px-4 py-2.5 rounded-subtle mb-5 animate-in fade-in slide-in-from-top-1 duration-200">
+          {success}
         </div>
       )}
 
@@ -452,7 +801,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
             />
           ) : (
             <div className="border border-sand-200 rounded-soft overflow-hidden">
-              <div className="hidden md:grid grid-cols-[minmax(0,2fr)_100px_130px_80px_80px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
+              <div className="hidden md:grid grid-cols-[minmax(0,2fr)_100px_130px_80px_180px] gap-4 px-4 py-2 bg-sand-100 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 border-b border-sand-200">
                 <span>{t('common.vehicle')}</span>
                 <span>{t('common.status')}</span>
                 <span>{t('renter.dailyRate')}</span>
@@ -465,16 +814,19 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                     (b) =>
                       b.vehicle?._id === v._id || b.vehicle === v._id
                   );
+                  const isDisabled = v.isActive === false;
                   return (
                     <div
                       key={v._id}
-                      className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_100px_130px_80px_80px] gap-2 md:gap-4 items-center px-4 py-3 hover:bg-sand-100/60 transition-colors"
+                      className={`grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_100px_130px_80px_180px] gap-2 md:gap-4 items-center px-4 py-3 transition-colors ${
+                        isDisabled ? 'bg-sand-100/40 opacity-70' : 'hover:bg-sand-100/60'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <img
                           src={getImg(v)}
                           alt=""
-                          className="w-12 h-9 rounded object-cover bg-sand-100 flex-shrink-0"
+                          className={`w-12 h-9 rounded object-cover bg-sand-100 flex-shrink-0 ${isDisabled ? 'grayscale' : ''}`}
                         />
                         <span className="text-[0.875rem] font-medium text-sand-900 truncate">
                           {v.make} {v.model}
@@ -483,24 +835,49 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                       <div>
                         <span
                           className={`inline-block px-2 py-0.5 rounded-subtle text-[0.7rem] font-semibold ${
-                            v.isAvailable !== false
+                            isDisabled
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : v.isAvailable !== false
                               ? 'bg-green-50 text-green-700 border border-green-200'
                               : 'bg-sand-100 text-sand-600 border border-sand-200'
                           }`}
                         >
-                          {v.isAvailable !== false ? t('status.available') : t('status.rented')}
+                          {isDisabled
+                            ? t('status.disabled')
+                            : v.isAvailable !== false
+                            ? t('status.available')
+                            : t('status.rented')}
                         </span>
                       </div>
                       <span className="text-[0.8125rem] text-sand-700 tabular-nums">
-                        {v.pricePerDay?.toLocaleString() || t('common.notSet')} {t('common.egp')}/{t('common.day')}
+                        {v.price_per_day?.toLocaleString() || t('common.notSet')} {t('common.egp')}/{t('common.day')}
                       </span>
                       <span className="text-[0.8125rem] text-sand-600 tabular-nums">
                         {vBookings.length}
                       </span>
-                      <div className="md:text-right">
+                      <div className="flex items-center gap-1.5 md:justify-end flex-wrap">
                         <button
-                          onClick={() => deleteVehicle(v._id)}
-                          className="text-[0.75rem] font-medium text-red-600 hover:text-red-800 transition-colors"
+                          onClick={() => setEditTarget(v)}
+                          className="text-[0.72rem] font-semibold text-primary-700 bg-primary-50 border border-primary-200 px-2.5 py-1 rounded-subtle hover:bg-primary-100 transition-colors"
+                          title={t('owner.editVehicle')}
+                        >
+                          {t('owner.editVehicle')}
+                        </button>
+                        <button
+                          onClick={() => setToggleTarget(v)}
+                          className={`text-[0.72rem] font-semibold px-2.5 py-1 rounded-subtle transition-colors border ${
+                            isDisabled
+                              ? 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100'
+                              : 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                          }`}
+                          title={isDisabled ? t('owner.enableVehicle') : t('owner.disableVehicle')}
+                        >
+                          {isDisabled ? t('owner.enableVehicle') : t('owner.disableVehicle')}
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(v)}
+                          className="text-[0.72rem] font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-subtle hover:bg-red-100 transition-colors"
+                          title={t('common.remove')}
                         >
                           {t('common.remove')}
                         </button>

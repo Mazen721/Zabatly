@@ -1,36 +1,33 @@
 const express = require('express');
 const router = express.Router();
-const Vehicle = require('../models/vehicle');
 const { protect } = require('../middleware/authMiddleware');
 const { requireVerifiedKyc } = require('../middleware/kycMiddleware');
 const { uploadVehicleImages } = require('../middleware/uploadMiddleware');
-const { createVehicle, getVehicles, getVehicleById } = require('../controllers/vehicleController');
+const {
+  createVehicle,
+  getVehicles,
+  getVehicleById,
+  softDeleteVehicle,
+  toggleVehicleActive,
+  updateVehicle,
+} = require('../controllers/vehicleController');
 
 // @desc    Get all vehicles (Explore Page)
 router.get('/', getVehicles);
 
-// ✅ ADDED: Get single vehicle by ID (Vehicle Details Page)
+// @desc    Get single vehicle by ID (Vehicle Details Page)
 router.get('/:id', getVehicleById);
 
 // @desc    Create a new vehicle (Add Vehicle Page)
 router.post('/', protect, requireVerifiedKyc, uploadVehicleImages, createVehicle);
 
-// @desc    Delete a vehicle
-router.delete('/:id', protect, requireVerifiedKyc, async (req, res) => {
-  try {
-    const vehicle = await Vehicle.findById(req.params.id);
-    if (!vehicle) return res.status(404).json({ message: 'Vehicle not found' });
-    
-    if (vehicle.owner.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized to delete this vehicle' });
-    }
-    
-    await Vehicle.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Vehicle removed' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server Error' });
-  }
-});
+// @desc    Toggle vehicle active/inactive (temporarily disable)
+router.put('/:id/toggle-active', protect, toggleVehicleActive);
+
+// @desc    Update vehicle information
+router.put('/:id', protect, uploadVehicleImages, updateVehicle);
+
+// @desc    Soft-delete a vehicle (remove from fleet, keep booking history)
+router.delete('/:id', protect, softDeleteVehicle);
 
 module.exports = router;

@@ -18,6 +18,8 @@ import AIAssistant from './pages/AIAssistant';
 import PaymentPage from './pages/PaymentPage';
 import BookingSuccess from './pages/BookingSuccess';
 import UserPublicProfile from './pages/UserPublicProfile';
+import ContactUs from './pages/ContactUs';
+import AboutUs from './pages/AboutUs';
 import LanguageSwitcher from './components/LanguageSwitcher';
 
 function getProfilePictureUrl(path) {
@@ -123,7 +125,8 @@ function AppShell() {
   const isLanding = location.pathname === '/';
   const isAuth = location.pathname === '/login' || location.pathname === '/register';
   const isDashboard = ['/dashboard', '/admin', '/profile', '/add-vehicle'].includes(location.pathname);
-  const hideChrome = isLanding || isAuth || isDashboard;
+  const isStaticPage = ['/contact', '/about'].includes(location.pathname);
+  const hideChrome = isLanding || isAuth || isDashboard || isStaticPage;
   const hideFloatingChat = hideChrome || location.pathname === '/ai-assistant';
 
   return (
@@ -138,6 +141,8 @@ function AppShell() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/drivers" element={<Drivers />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/about" element={<AboutUs />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add-vehicle" element={<AddVehicle />} />

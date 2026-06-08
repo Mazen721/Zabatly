@@ -278,8 +278,8 @@ export default function Landing() {
           <div className="hidden md:flex items-center gap-7">
             <Link to="/explore" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{tc('nav.browseCars')}</Link>
             <a href="#how-it-works" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{tc('nav.howItWorks')}</a>
-            <a href="#" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{tc('nav.aboutUs')}</a>
-            <a href="#faq" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{tc('nav.help')}</a>
+            <Link to="/about" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{tc('nav.aboutUs')}</Link>
+            <Link to="/contact" className="text-[0.82rem] font-medium text-sand-700 hover:text-primary-700 transition-colors">{tc('nav.contactUs')}</Link>
           </div>
           <div className="flex items-center gap-3">
             {user ? (
@@ -605,9 +605,9 @@ export default function Landing() {
             <div>
               <h4 className="text-white text-label font-semibold mb-4 tracking-wide uppercase text-xs">{tc('footer.company')}</h4>
               <ul className="space-y-2.5">
-                <li><a href="#" className="text-sm text-primary-400 hover:text-white transition-colors">{tc('footer.about')}</a></li>
+                <li><Link to="/about" className="text-sm text-primary-400 hover:text-white transition-colors">{tc('footer.about')}</Link></li>
                 <li><a href="#how-it-works" className="text-sm text-primary-400 hover:text-white transition-colors">{tc('footer.howItWorks')}</a></li>
-                <li><a href="#" className="text-sm text-primary-400 hover:text-white transition-colors">{tc('footer.contact')}</a></li>
+                <li><Link to="/contact" className="text-sm text-primary-400 hover:text-white transition-colors">{tc('footer.contact')}</Link></li>
               </ul>
             </div>
 

@@ -14,6 +14,7 @@
   "details": "Vehicle Details",
   "make": "Make",
   "model": "Model",
+  "year": "Year",
   "type": "Type",
   "transmission": "Transmission",
   "fuel": "Fuel",

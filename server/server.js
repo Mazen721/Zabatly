@@ -27,6 +27,7 @@ app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/driver-requests', require('./routes/driverRequests'));
 app.use('/api/geocode', require('./routes/geocode'));
+app.use('/api/contact', require('./routes/contact'));
 
 // AI Chat route is live!
 app.use('/api/chat', require('./routes/ai'));

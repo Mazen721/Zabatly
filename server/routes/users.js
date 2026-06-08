@@ -246,6 +246,48 @@ router.get('/:id/public', async (req, res) => {
   }
 });
 
+// @desc    Upgrade user account to vehicle host (agency)
+// @route   POST /api/users/upgrade-to-host
+router.post('/upgrade-to-host', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (user.role !== 'user') {
+      return res.status(400).json({ message: 'Only renters can upgrade to vehicle host.' });
+    }
+
+    user.role = 'agency';
+    const updated = await user.save();
+
+    res.json({
+      _id: updated._id,
+      name: updated.name,
+      email: updated.email,
+      role: updated.role,
+      is_verified: updated.is_verified,
+      profilePicture: updated.profilePicture,
+      profilePhoto: updated.profilePhoto,
+      age: updated.age,
+      dateOfBirth: updated.dateOfBirth,
+      gender: updated.gender,
+      phone: updated.phone,
+      city: updated.city,
+      nationality: updated.nationality,
+      preferredLanguage: updated.preferredLanguage,
+      emergencyContact: updated.emergencyContact,
+      rating: updated.rating,
+      numReviews: updated.numReviews,
+      kyc_status: updated.kyc_status,
+      driving_license: updated.driving_license,
+      token: req.headers.authorization.split(' ')[1],
+    });
+  } catch (error) {
+    console.error('Upgrade to host error:', error);
+    res.status(500).json({ message: 'Failed to upgrade account.' });
+  }
+});
+
 // @desc    Upload document, send to Python AI, update KYC
 // @route   POST /api/users/kyc/verify
 router.post('/kyc/verify', protect, uploadKycDocument, verifyDocument);

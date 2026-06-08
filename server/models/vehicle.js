@@ -42,6 +42,8 @@ const vehicleSchema = new mongoose.Schema({
   driver_cost: { type: Number, default: 0 },
   images: { type: [String], required: true }, 
   isAvailable: { type: Boolean, default: true },
+  isActive: { type: Boolean, default: true },
+  isDeleted: { type: Boolean, default: false },
 
   // ==========================================
   // NEW: Vehicle KYC & Registration Verification

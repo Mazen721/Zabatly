@@ -1,0 +1,44 @@
+{
+  "hero": {
+    "title": "Get in Touch",
+    "subtitle": "Have a question, suggestion, or need help with your booking? We'd love to hear from you. Our team is here to assist."
+  },
+  "info": {
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "addressValue": "Cairo, Egypt",
+    "hours": "Working Hours",
+    "hoursValue": "Sun–Thu: 9AM – 6PM"
+  },
+  "form": {
+    "title": "Send us a Message",
+    "subtitle": "Fill out the form below and our team will get back to you as soon as possible.",
+    "name": "Full Name",
+    "namePlaceholder": "Enter your name",
+    "email": "Email Address",
+    "emailPlaceholder": "you@example.com",
+    "phone": "Phone Number",
+    "phonePlaceholder": "+20 xxx xxx xxxx",
+    "subject": "Subject",
+    "subjectPlaceholder": "What's this about?",
+    "message": "Message",
+    "messagePlaceholder": "Tell us more about your inquiry...",
+    "send": "Send Message",
+    "sending": "Sending...",
+    "successTitle": "Message Sent!",
+    "successMessage": "Thank you for reaching out. We've received your message and will respond within 24 hours.",
+    "sendAnother": "Send another message",
+    "errorGeneric": "Something went wrong. Please try again."
+  },
+  "sidebar": {
+    "whyTitle": "How can we help?",
+    "reason1": "Technical support and troubleshooting",
+    "reason2": "Suggestions and feature requests",
+    "reason3": "Partnership and business inquiries",
+    "reason4": "Report an issue or concern",
+    "responseTitle": "Quick Response",
+    "responseDesc": "We typically respond within 24 hours during business days. For urgent matters, call us directly or reach out on WhatsApp.",
+    "followUs": "Follow Us"
+  }
+}
