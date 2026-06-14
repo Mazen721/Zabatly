@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const CHAT_MODEL = 'gemini-2.5-flash';
-const OCR_MODEL = 'gemini-2.5-flash';
+const CHAT_MODEL = 'gemini-3.1-flash-lite';
+const OCR_MODEL = 'gemini-3.5-flash';
 
 const MIME_TYPES = {
   '.jpg': 'image/jpeg',
@@ -71,6 +71,13 @@ const generateGeminiVisionJson = async (modelName, prompt, filePath, mimeType) =
   });
 
   const imageBytes = fs.readFileSync(filePath);
+
+  // Warn if image is very large — may cause slower processing
+  const sizeMB = imageBytes.length / (1024 * 1024);
+  if (sizeMB > 4) {
+    console.warn(`Gemini OCR: Large image (${sizeMB.toFixed(1)}MB). Processing may be slower.`);
+  }
+
   const result = await model.generateContent([
     prompt,
     {

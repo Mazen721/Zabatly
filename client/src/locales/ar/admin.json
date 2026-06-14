@@ -86,5 +86,23 @@
     "completed": "مكتمل",
     "cancelled": "ملغي",
     "unsubmitted": "غير مقدم"
-  }
+  },
+  "messages": "الرسائل",
+  "contactMessages": "رسائل التواصل",
+  "noMessages": "مفيش رسائل تواصل لسه.",
+  "from": "من",
+  "subject": "الموضوع",
+  "message": "الرسالة",
+  "phone": "الموبايل",
+  "received": "استُلمت",
+  "unread": "غير مقروءة",
+  "read": "مقروءة",
+  "markAsRead": "علّم كمقروءة",
+  "deleteMessage": "حذف",
+  "confirmDelete": "متأكد إنك عايز تحذف الرسالة دي؟",
+  "totalMessages": "إجمالي الرسائل",
+  "unreadMessages": "غير مقروءة",
+  "readMessages": "مقروءة",
+  "messageDeleted": "تم حذف الرسالة بنجاح.",
+  "noPhone": "مش متوفر"
 }

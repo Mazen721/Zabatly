@@ -58,4 +58,30 @@ router.get('/', async (req, res) => {
   }
 });
 
+// PATCH /api/contact/:id/read — Mark a message as read
+router.patch('/:id/read', async (req, res) => {
+  try {
+    const msg = await ContactMessage.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true },
+      { new: true }
+    );
+    if (!msg) return res.status(404).json({ error: 'Message not found.' });
+    res.json(msg);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update message.' });
+  }
+});
+
+// DELETE /api/contact/:id — Delete a contact message
+router.delete('/:id', async (req, res) => {
+  try {
+    const msg = await ContactMessage.findByIdAndDelete(req.params.id);
+    if (!msg) return res.status(404).json({ error: 'Message not found.' });
+    res.json({ success: true, message: 'Message deleted.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete message.' });
+  }
+});
+
 module.exports = router;

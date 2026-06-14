@@ -1,9 +1,10 @@
 {
   "assistant": "Zabatly AI Assistant",
+  "assistantShort": "Zabatly AI",
   "assistantIntro": "Tell it the trip, budget, or car type you have in mind.",
   "initialMessage": "How many people are traveling, or what kind of car are you looking for?",
   "connectionError": "Having trouble connecting. Try again in a moment.",
-  "thinking": "Thinking...",
+  "thinking": "Thinking",
   "placeholder": "Ask about cars, pricing, anything...",
   "closeChat": "Close chat",
   "openChat": "Open chat",
@@ -20,5 +21,8 @@
   "recommendation": "AI Recommendation",
   "recommendedVehicles": "Recommended Vehicles:",
   "seats": "Seats",
-  "perDay": "/day"
+  "perDay": "/day",
+  "viewDetails": "View details",
+
+  "retry": "Try again"
 }

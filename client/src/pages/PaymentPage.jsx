@@ -5,7 +5,7 @@ import { API } from '../config/api';
 import { useTranslation } from 'react-i18next';
 const VODAFONE_NUMBER = '01090923550';
 const INSTAPAY_ID = 'mazen721@instapay';
-const SERVICE_FEE_RATE = 0.1;
+const SERVICE_FEE_RATE = 0.05;
 
 const formatDate = (date) =>
   date
@@ -107,7 +107,7 @@ function CreditCardPreview({ brand, cardName, cardNumber, expiry, cvv, isFlipped
   const displayNumber = cardNumber || '0000 0000 0000 0000';
   const displayName = cardName.trim() || 'Your Name';
   const displayExpiry = expiry || 'MM/YY';
-  const displayCvv = cvv || '123';
+  const displayCvv = cvv || '•••';
   const cardStyle = brand === 'Visa'
     ? { background: 'linear-gradient(135deg, #1434cb 0%, #1b2b44 58%, #0f1623 100%)' }
     : brand === 'Mastercard'
@@ -439,7 +439,6 @@ export default function PaymentPage() {
 
             <div
               className="rounded-soft border border-sand-200 bg-sand-50 p-5 transition-all duration-200 ease-out-quart"
-              style={method === 'card' && theme.panelStyle ? theme.panelStyle : undefined}
             >
               {method === 'card' && (
                 <div className="space-y-5">

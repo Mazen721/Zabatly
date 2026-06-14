@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Egyptian Document OCR Service",
     description="OCR microservice for Egyptian National ID, Passport, Driving License, and Car License",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -65,6 +65,59 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================
+# Expected fields per doc type — used for accurate fill ratio
+# ============================================================
+EXPECTED_FIELDS_BY_DOC_TYPE = {
+    "national_id": [
+        "full_name_ar", "national_id_number", "date_of_birth",
+        "gender", "address", "marital_status", "religion",
+        "occupation", "issue_date", "expiry_date",
+    ],
+    "passport": [
+        "full_name_ar", "full_name_en", "document_number",
+        "nationality", "date_of_birth", "gender",
+        "place_of_birth", "issue_date", "expiry_date",
+    ],
+    "driver_license": [
+        "full_name_ar", "license_number", "license_type",
+        "date_of_birth", "issue_date", "expiry_date",
+        "traffic_unit", "blood_type",
+    ],
+    "car_license": [
+        "plate_number", "plate_letters_ar", "chassis_number",
+        "engine_number", "vehicle_make", "vehicle_model",
+        "vehicle_year", "vehicle_color", "owner_name_ar",
+        "license_expiry",
+    ],
+}
+
+
+def _count_expected_fields(fields: dict, doc_type: str) -> tuple:
+    """
+    Count filled expected fields for a given doc type.
+    Only counts doc-type-specific fields, NOT injected backward-compatible keys.
+    Returns (filled, total).
+    """
+    expected = EXPECTED_FIELDS_BY_DOC_TYPE.get(doc_type, [])
+    if not expected:
+        # Fallback: count all non-None fields
+        total = len(fields)
+        filled = sum(
+            1 for v in fields.values()
+            if v is not None and str(v).strip() != "" and str(v).strip().lower() != "null"
+        )
+        return filled, total
+
+    total = len(expected)
+    filled = 0
+    for field_name in expected:
+        v = fields.get(field_name)
+        if v is not None and str(v).strip() != "" and str(v).strip().lower() != "null":
+            filled += 1
+    return filled, total
 
 
 @app.get("/")
@@ -142,12 +195,14 @@ async def scan_document(
         original_b64 = prep_result["original_b64"]
         quality_score = prep_result["quality_score"]
         brightness_score = prep_result["brightness_score"]
+        quality_tier = prep_result["quality_tier"]
         min_dimension = prep_result["min_dimension"]
-        logger.info(f"📊 Quality score: {quality_score:.1f}, Brightness: {brightness_score:.1f}, Min dimension: {min_dimension}px")
+        logger.info(f"📊 Quality: {quality_score:.1f}, Brightness: {brightness_score:.1f}, "
+                     f"Tier: {quality_tier}, Min dim: {min_dimension}px")
 
-        # Quality Gate Checks (Feature 2)
-        if min_dimension < 300 or quality_score < 8:
-            logger.warning(f"❌ Image rejected: too small/no content (min_dim={min_dimension}, quality={quality_score:.1f})")
+        # Quality Gate — Only reject truly unusable images
+        if min_dimension < 200 or quality_score < 5:
+            logger.warning(f"❌ Image rejected: too small/blank (min_dim={min_dimension}, quality={quality_score:.1f})")
             return OCRResponse(
                 success=False,
                 detected_doc_type="unknown",
@@ -155,41 +210,61 @@ async def scan_document(
                 fraud_report=FraudReport(
                     risk_level="HIGH_RISK",
                     flags=["IMAGE_TOO_SMALL"],
-                    recommendation="Image too small. Please upload a higher resolution photo.",
+                    recommendation=(
+                        "Image is too small or appears blank. "
+                        "Please upload a photo with at least 200px on each side."
+                    ),
                 ),
-                validation=ValidationResult(is_valid=False, errors=["Image too small"]),
+                validation=ValidationResult(is_valid=False, errors=[
+                    "Image is too small or blank. Please upload a higher resolution photo."
+                ]),
                 quality_score=quality_score,
             ).model_dump()
 
-        if quality_score < 15:
-            logger.warning(f"❌ Image rejected: too blurry (quality={quality_score:.1f})")
+        if quality_score < 8:
+            logger.warning(f"⚠️ Very poor image quality ({quality_score:.1f}) — proceeding with max enhancement")
+            # Don't reject — the enhanced image may still be readable by the VLM
+
+        if brightness_score < 30:
+            logger.warning(f"❌ Image rejected: too dark (brightness={brightness_score:.1f})")
             return OCRResponse(
                 success=False,
                 detected_doc_type="unknown",
                 fields={},
                 fraud_report=FraudReport(
                     risk_level="HIGH_RISK",
-                    flags=["IMAGE_BLURRY"],
-                    recommendation="Please upload a clearer image.",
+                    flags=["IMAGE_TOO_DARK"],
+                    recommendation=(
+                        "The image is too dark to read. "
+                        "Please take the photo in a well-lit area or use your camera flash."
+                    ),
                 ),
-                validation=ValidationResult(is_valid=False, errors=["Please upload a clearer image"]),
+                validation=ValidationResult(is_valid=False, errors=[
+                    "Image is too dark. Please use better lighting or enable flash."
+                ]),
                 quality_score=quality_score,
             ).model_dump()
 
-        if brightness_score < 40 or brightness_score > 240:
-            logger.warning(f"❌ Image rejected: bad lighting (brightness={brightness_score:.1f})")
+        if brightness_score > 245:
+            logger.warning(f"❌ Image rejected: overexposed (brightness={brightness_score:.1f})")
             return OCRResponse(
                 success=False,
                 detected_doc_type="unknown",
                 fields={},
                 fraud_report=FraudReport(
                     risk_level="HIGH_RISK",
-                    flags=["BAD_LIGHTING"],
-                    recommendation="Bad lighting, try again.",
+                    flags=["IMAGE_OVEREXPOSED"],
+                    recommendation=(
+                        "The image is overexposed (too bright/washed out). "
+                        "Please retake the photo away from direct light and avoid glare on the document surface."
+                    ),
                 ),
-                validation=ValidationResult(is_valid=False, errors=["Bad lighting, try again"]),
+                validation=ValidationResult(is_valid=False, errors=[
+                    "Image is overexposed. Please avoid direct light and glare."
+                ]),
                 quality_score=quality_score,
             ).model_dump()
+
     except ValueError as e:
         return OCRResponse(
             success=False,
@@ -252,13 +327,20 @@ async def scan_document(
     # ============================================================
     logger.info(f"📝 Step 3: Extracting fields for '{processing_doc_type}'...")
     
-    # Use the enhanced (preprocessed) image for text extraction
+    # Use the COLOR-enhanced image for text extraction (preserves color cues)
     fields = extract_fields(enhanced_b64, processing_doc_type)
 
     if fields is None:
-        # Retry with original color image (VLM might do better)
+        # Retry with original color image (VLM might do better without enhancement)
         logger.info("🔄 Retrying extraction with original color image...")
         fields = extract_fields(original_b64, processing_doc_type)
+
+    if fields is None:
+        # Last resort: try the grayscale-enhanced image
+        enhanced_gray_b64 = prep_result.get("enhanced_gray_b64")
+        if enhanced_gray_b64:
+            logger.info("🔄 Retrying extraction with grayscale-enhanced image...")
+            fields = extract_fields(enhanced_gray_b64, processing_doc_type)
 
     if fields is None:
         fields = {}
@@ -290,6 +372,10 @@ async def scan_document(
         lt = fields["license_type"].strip()
         if lt in license_type_map:
             fields["license_type"] = license_type_map[lt]
+
+    # Count expected fields BEFORE injecting backward-compatible keys
+    filled_expected, total_expected = _count_expected_fields(fields, processing_doc_type)
+    logger.info(f"📊 Expected fields filled: {filled_expected}/{total_expected}")
 
     # Backward-compatible keys expected by Node.js kycController.
     for required_key in [
@@ -326,6 +412,7 @@ async def scan_document(
             detection_confidence=detection_confidence,
             validation_result=validation_result,
             image_quality_score=quality_score,
+            expected_field_counts=(filled_expected, total_expected),
         )
     else:
         fraud_result = {
@@ -337,15 +424,8 @@ async def scan_document(
     # ============================================================
     # 7. Build Response
     # ============================================================
-    # Determine success: we got at least some fields
-    filled, total = 0, len(fields)
-    if total > 0:
-        filled = sum(
-            1 for v in fields.values()
-            if v is not None and str(v).strip() != "" and str(v).strip().lower() != "null"
-        )
-
-    success = filled >= 2  # At least 2 non-empty fields = some data was extracted
+    # Determine success using expected fields, not all fields (including injected None keys)
+    success = filled_expected >= 2  # At least 2 expected fields extracted
 
     response = OCRResponse(
         success=success,
@@ -360,7 +440,7 @@ async def scan_document(
         f"{'✅' if success else '❌'} Scan complete: "
         f"success={success}, type={detected_type}, "
         f"risk={fraud_result['risk_level']}, "
-        f"fields={filled}/{total}"
+        f"fields={filled_expected}/{total_expected}"
     )
 
     return response.model_dump()

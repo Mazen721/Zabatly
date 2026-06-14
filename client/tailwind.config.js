@@ -66,6 +66,20 @@ export default {
         'out-quart': 'cubic-bezier(0.25, 1, 0.5, 1)',
         'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
       },
+      keyframes: {
+        'chat-fade-up': {
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'cursor-blink': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
+      },
+      animation: {
+        'chat-fade-up': 'chat-fade-up 300ms cubic-bezier(0.25, 1, 0.5, 1) both',
+        'cursor-blink': 'cursor-blink 800ms step-end infinite',
+      },
     },
   },
   plugins: [],

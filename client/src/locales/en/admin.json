@@ -86,5 +86,23 @@
     "completed": "Completed",
     "cancelled": "Cancelled",
     "unsubmitted": "Unsubmitted"
-  }
+  },
+  "messages": "Messages",
+  "contactMessages": "Contact Messages",
+  "noMessages": "No contact messages yet.",
+  "from": "From",
+  "subject": "Subject",
+  "message": "Message",
+  "phone": "Phone",
+  "received": "Received",
+  "unread": "Unread",
+  "read": "Read",
+  "markAsRead": "Mark as read",
+  "deleteMessage": "Delete",
+  "confirmDelete": "Are you sure you want to delete this message?",
+  "totalMessages": "Total Messages",
+  "unreadMessages": "Unread",
+  "readMessages": "Read",
+  "messageDeleted": "Message deleted successfully.",
+  "noPhone": "Not provided"
 }

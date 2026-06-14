@@ -4,6 +4,7 @@ Multi-signal approach that flags real issues, not OCR imperfections.
 
 Key principle: We do NOT auto-flag fraud just because OCR is imperfect.
 Only structural impossibilities and validation failures trigger HIGH_RISK.
+OCR quality issues (checksum mismatches, partial extraction) route to admin review.
 """
 
 import logging
@@ -28,13 +29,23 @@ def _count_non_null_fields(fields: dict) -> tuple[int, int]:
     return filled, total
 
 
-def _check_extraction_quality(fields: dict) -> list[str]:
+def _check_extraction_quality(
+    fields: dict,
+    expected_field_counts: Optional[tuple] = None,
+) -> list[str]:
     """
     Check if the OCR extraction produced enough data.
     Too many empty fields suggests an unreadable document, not fraud.
+    
+    Uses expected_field_counts (filled, total) if provided to avoid
+    inflating the ratio with injected backward-compatible None keys.
     """
     flags = []
-    filled, total = _count_non_null_fields(fields)
+
+    if expected_field_counts:
+        filled, total = expected_field_counts
+    else:
+        filled, total = _count_non_null_fields(fields)
 
     if total == 0:
         flags.append("EMPTY_EXTRACTION: No fields were returned by OCR.")
@@ -42,12 +53,12 @@ def _check_extraction_quality(fields: dict) -> list[str]:
 
     fill_ratio = filled / total
 
-    if fill_ratio < 0.2:
+    if fill_ratio < 0.1:
         flags.append(
             f"VERY_LOW_EXTRACTION: Only {filled}/{total} fields extracted ({fill_ratio:.0%}). "
             f"Document may be unreadable or not a valid document."
         )
-    elif fill_ratio < 0.4:
+    elif fill_ratio < 0.25:
         flags.append(
             f"LOW_EXTRACTION: Only {filled}/{total} fields extracted ({fill_ratio:.0%}). "
             f"Image quality may be poor."
@@ -123,12 +134,12 @@ def _check_image_quality(quality_score: float) -> list[str]:
     Very low = blurry / unreadable, but NOT fraud.
     """
     flags = []
-    if quality_score < 20:
+    if quality_score < 10:
         flags.append(
             f"VERY_LOW_IMAGE_QUALITY: Score {quality_score:.0f}. "
             f"Image is extremely blurry or low resolution."
         )
-    elif quality_score < 50:
+    elif quality_score < 30:
         flags.append(
             f"LOW_IMAGE_QUALITY: Score {quality_score:.0f}. "
             f"Image quality is poor — text may be hard to read."
@@ -144,9 +155,16 @@ def assess_fraud(
     detection_confidence: str,
     validation_result: dict,
     image_quality_score: float,
+    expected_field_counts: Optional[tuple] = None,
 ) -> dict:
     """
     Perform multi-signal fraud assessment.
+    
+    Separates two concerns:
+    1. OCR QUALITY ISSUES — poor images, partial extraction, checksum mismatches
+       → These route to MEDIUM_RISK (admin review), not rejection.
+    2. STRUCTURAL FRAUD — impossible NID values, completely wrong document type
+       → These route to HIGH_RISK (rejection).
     
     Returns:
     {
@@ -157,8 +175,8 @@ def assess_fraud(
     """
     all_flags = []
 
-    # 1. Extraction quality
-    all_flags.extend(_check_extraction_quality(fields))
+    # 1. Extraction quality (uses accurate expected field counts)
+    all_flags.extend(_check_extraction_quality(fields, expected_field_counts))
 
     # 2. Document type consistency
     all_flags.extend(
@@ -176,11 +194,16 @@ def assess_fraud(
     for err in validation_errors:
         all_flags.append(f"VALIDATION_ERROR: {err}")
 
+    # 5b. Validation warnings (OCR-quality issues like checksum mismatches)
+    validation_warnings = validation_result.get("warnings", [])
+    for warn in validation_warnings:
+        all_flags.append(f"VALIDATION_WARNING: {warn}")
+
     # ============================================================
     # Determine Risk Level
     # ============================================================
     
-    # Count severity
+    # HIGH RISK: Only structural impossibilities and clear fraud signals
     high_risk_patterns = [
         "EMPTY_EXTRACTION",
         "VERY_LOW_EXTRACTION",
@@ -188,7 +211,7 @@ def assess_fraud(
         "UNRECOGNIZED_DOCUMENT",
     ]
     
-    # Validation errors about format/structure are HIGH_RISK
+    # Structural validation errors = genuine impossibilities (HIGH_RISK)
     structural_validation_errors = [
         err for err in validation_errors
         if any(kw in err.lower() for kw in [
@@ -197,8 +220,6 @@ def assess_fraud(
             "invalid century",
             "invalid date of birth",
             "invalid governorate",
-            "gender mismatch",
-            "dob mismatch",
             "is in the future",
         ])
     ]
@@ -208,6 +229,8 @@ def assess_fraud(
         for flag in all_flags
     ) or len(structural_validation_errors) > 0
 
+    # MEDIUM RISK: OCR quality issues, warnings, partial extraction
+    # These should route to admin review, NOT auto-rejection
     has_medium_risk = any(
         any(pattern in flag for pattern in [
             "EXPIRED_DOCUMENT",
@@ -215,6 +238,8 @@ def assess_fraud(
             "TYPE_MISMATCH_MEDIUM",
             "LOW_IMAGE_QUALITY",
             "VERY_LOW_IMAGE_QUALITY",
+            "CHECKSUM_MISMATCH_OCR",
+            "VALIDATION_WARNING",
         ])
         for flag in all_flags
     )
@@ -240,7 +265,7 @@ def assess_fraud(
         recommendation = (
             "Document has some issues that require admin review. "
             "These may be due to an expired document, poor image quality, "
-            "or minor inconsistencies. "
+            "or minor OCR reading errors (e.g., one digit misread). "
             "Flags: " + "; ".join(all_flags)
         )
     else:

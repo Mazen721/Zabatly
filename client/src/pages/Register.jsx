@@ -13,7 +13,8 @@ const passwordChecks = (value) => ({
 export default function Register() {
   const { t } = useTranslation('auth');
   const [step, setStep] = useState('credentials');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -88,7 +89,7 @@ export default function Register() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (!name.trim()) {
+    if (!firstName.trim() || !lastName.trim()) {
       setError(t('register.nameRequired'));
       return;
     }
@@ -101,7 +102,7 @@ export default function Register() {
           .filter(Boolean);
 
       const { data } = await axios.post(`${API}/api/auth/register`, {
-        name,
+        name: `${firstName.trim()} ${lastName.trim()}`,
         email,
         password,
         role,
@@ -235,19 +236,35 @@ export default function Register() {
 
             {step === 'details' && (
               <>
-            <div>
-              <label htmlFor="reg-name" className="block text-label text-sand-700 mb-1.5">{t('register.fullName')}</label>
-              <input
-                id="reg-name"
-                type="text"
-                required
-                autoComplete="name"
-                placeholder={t('register.fullNamePlaceholder')}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
-                disabled={loading}
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="reg-first-name" className="block text-label text-sand-700 mb-1.5">{t('register.firstName')}</label>
+                <input
+                  id="reg-first-name"
+                  type="text"
+                  required
+                  autoComplete="given-name"
+                  placeholder={t('register.firstNamePlaceholder')}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
+                  disabled={loading}
+                />
+              </div>
+              <div>
+                <label htmlFor="reg-last-name" className="block text-label text-sand-700 mb-1.5">{t('register.lastName')}</label>
+                <input
+                  id="reg-last-name"
+                  type="text"
+                  required
+                  autoComplete="family-name"
+                  placeholder={t('register.lastNamePlaceholder')}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-body focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
+                  disabled={loading}
+                />
+              </div>
             </div>
 
             <fieldset className="space-y-4 border-t border-sand-200 pt-5" disabled={loading}>

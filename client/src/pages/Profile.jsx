@@ -216,6 +216,8 @@ export default function Profile() {
 
   // KYC
   const [kycFile, setKycFile] = useState(null);
+  const [kycPreview, setKycPreview] = useState(null);
+  const [kycFileError, setKycFileError] = useState('');
   const [docType, setDocType] = useState('national_id');
   const [kycLoading, setKycLoading] = useState(false);
 
@@ -312,10 +314,51 @@ export default function Profile() {
     }
   };
 
+  // --- KYC File Validation & Preview ---
+  const ALLOWED_KYC_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const MAX_KYC_SIZE_MB = 10;
+
+  const handleKycFileChange = (e) => {
+    const selected = e.target.files[0];
+    if (!selected) return;
+
+    // Reset previous errors
+    setKycFileError('');
+
+    // Validate file type
+    if (!ALLOWED_KYC_TYPES.includes(selected.type)) {
+      setKycFileError(
+        t('kycFileTypeError', 'Only JPG, PNG, and WebP images are supported. Please convert your file and try again.')
+      );
+      setKycFile(null);
+      if (kycPreview) URL.revokeObjectURL(kycPreview);
+      setKycPreview(null);
+      return;
+    }
+
+    // Validate file size
+    const sizeMB = selected.size / (1024 * 1024);
+    if (sizeMB > MAX_KYC_SIZE_MB) {
+      setKycFileError(
+        t('kycFileSizeError', `File is too large (${sizeMB.toFixed(1)}MB). Maximum size is ${MAX_KYC_SIZE_MB}MB.`)
+      );
+      setKycFile(null);
+      if (kycPreview) URL.revokeObjectURL(kycPreview);
+      setKycPreview(null);
+      return;
+    }
+
+    // Set file and create preview
+    setKycFile(selected);
+    if (kycPreview) URL.revokeObjectURL(kycPreview);
+    setKycPreview(URL.createObjectURL(selected));
+  };
+
   // --- KYC Submit ---
   const handleKycSubmit = async (e) => {
     e.preventDefault();
     if (!kycFile) return showToast(t('selectDocFirst'), 'error');
+    if (kycFileError) return showToast(kycFileError, 'error');
 
     const formData = new FormData();
     formData.append('file', kycFile);
@@ -348,21 +391,36 @@ export default function Profile() {
       localStorage.setItem('userInfo', JSON.stringify(updated));
       setUser(updated);
       setKycFile(null);
+      setKycFileError('');
+      if (kycPreview) URL.revokeObjectURL(kycPreview);
+      setKycPreview(null);
 
       if (updated.role !== 'agency') setDocType('driver_license');
 
       showToast(
         data.status === 'verified'
-          ? 'Document verified.'
-          : 'Document uploaded, pending review.'
+          ? t('docVerified', 'Document verified.')
+          : data.status === 'manual_review'
+          ? t('docManualReview', 'Document uploaded and sent for admin review. You will be notified.')
+          : t('docPending', 'Document uploaded, pending review.')
       );
     } catch (err) {
-      showToast(
+      const serverMsg =
         err.response?.data?.message ||
-          err.response?.data?.reason ||
-          'Upload failed. Try a clearer image.',
-        'error'
-      );
+        err.response?.data?.reason ||
+        '';
+      const suggestions = err.response?.data?.suggestions;
+
+      if (suggestions && suggestions.length > 0) {
+        showToast(suggestions.join(' '), 'error');
+      } else if (serverMsg) {
+        showToast(serverMsg, 'error');
+      } else {
+        showToast(
+          t('kycUploadFailed', 'Upload failed. Please use a clear, well-lit photo of your document.'),
+          'error'
+        );
+      }
     } finally {
       setKycLoading(false);
     }
@@ -1033,6 +1091,19 @@ export default function Profile() {
                 {t('uploadDocument')}
               </p>
 
+              {/* Upload guidance */}
+              <div className="bg-primary-50 border border-primary-200 rounded-subtle px-3 py-2.5">
+                <p className="text-[0.75rem] font-semibold text-primary-800 mb-1">
+                  {t('kycGuidanceTitle', '📷 Tips for a successful scan:')}
+                </p>
+                <ul className="text-[0.75rem] text-primary-700 space-y-0.5 list-disc list-inside">
+                  <li>{t('kycTip1', 'Use good lighting — avoid shadows on the document.')}</li>
+                  <li>{t('kycTip2', 'Avoid glare — tilt the document slightly if it has a glossy surface.')}</li>
+                  <li>{t('kycTip3', 'Keep the entire document visible and in focus.')}</li>
+                  <li>{t('kycTip4', 'Supported formats: JPG, PNG, WebP (max 10MB).')}</li>
+                </ul>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <select
                   value={docType}
@@ -1063,15 +1134,51 @@ export default function Profile() {
                   <input
                     type="file"
                     className="hidden"
-                    accept="image/*"
-                    onChange={(e) => setKycFile(e.target.files[0])}
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleKycFileChange}
                   />
                 </label>
               </div>
 
+              {/* File validation error */}
+              {kycFileError && (
+                <div className="bg-red-50 border border-red-200 rounded-subtle px-3 py-2 text-[0.8125rem] font-medium text-red-700">
+                  {kycFileError}
+                </div>
+              )}
+
+              {/* Image preview */}
+              {kycPreview && (
+                <div className="relative rounded-subtle border border-sand-200 overflow-hidden bg-sand-100">
+                  <img
+                    src={kycPreview}
+                    alt="Document preview"
+                    className="w-full max-h-48 object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKycFile(null);
+                      setKycFileError('');
+                      if (kycPreview) URL.revokeObjectURL(kycPreview);
+                      setKycPreview(null);
+                    }}
+                    className="absolute top-2 right-2 bg-sand-50/90 border border-sand-200 rounded-full w-6 h-6 flex items-center justify-center text-sand-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors"
+                    aria-label="Remove selected file"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M2.5 2.5l9 9M11.5 2.5l-9 9" />
+                    </svg>
+                  </button>
+                  <p className="text-[0.75rem] text-sand-500 text-center py-1.5">
+                    {t('kycPreviewHint', 'Check that the document is clear and fully visible before uploading.')}
+                  </p>
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={kycLoading}
+                disabled={kycLoading || !!kycFileError}
                 className="bg-primary-800 text-white text-[0.8125rem] font-semibold px-5 py-2.5 rounded-subtle hover:bg-primary-900 transition-colors disabled:opacity-50"
               >
                 {kycLoading ? t('scanning') : t('upload')}

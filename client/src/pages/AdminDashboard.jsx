@@ -50,6 +50,8 @@ export default function AdminDashboard() {
     bookings: [],
     reviews: [],
   });
+  const [contactMessages, setContactMessages] = useState([]);
+  const [expandedMessageId, setExpandedMessageId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
@@ -70,9 +72,10 @@ export default function AdminDashboard() {
     if (!user) return;
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      const [{ data }, { data: overview }] = await Promise.all([
+      const [{ data }, { data: overview }, { data: messages }] = await Promise.all([
         axios.get(`${API}/api/admin/pending`, config),
         axios.get(`${API}/api/admin/overview`, config),
+        axios.get(`${API}/api/contact`, config),
       ]);
       setPending({
         identity: data?.identity || [],
@@ -86,6 +89,7 @@ export default function AdminDashboard() {
         bookings: overview?.bookings || [],
         reviews: overview?.reviews || [],
       });
+      setContactMessages(messages || []);
     } catch {
       setError(t('loadError'));
     } finally {
@@ -114,6 +118,31 @@ export default function AdminDashboard() {
     (pending.licenses?.length || 0) +
     (pending.vehicles?.length || 0);
   const stats = platform.stats || {};
+  const unreadCount = contactMessages.filter((m) => !m.isRead).length;
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.patch(`${API}/api/contact/${id}/read`, {}, config);
+      setContactMessages((prev) =>
+        prev.map((m) => (m._id === id ? { ...m, isRead: true } : m))
+      );
+    } catch {
+      setError(t('reviewError'));
+    }
+  };
+
+  const handleDeleteMessage = async (id) => {
+    if (!window.confirm(t('confirmDelete'))) return;
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.delete(`${API}/api/contact/${id}`, config);
+      setContactMessages((prev) => prev.filter((m) => m._id !== id));
+      if (expandedMessageId === id) setExpandedMessageId(null);
+    } catch {
+      setError(t('reviewError'));
+    }
+  };
 
   const navItems = [
     {
@@ -179,6 +208,17 @@ export default function AdminDashboard() {
           <rect x="2" y="6" width="12" height="4.5" rx="1" />
           <circle cx="4.5" cy="12" r="1" />
           <circle cx="11.5" cy="12" r="1" />
+        </svg>
+      ),
+    },
+    {
+      id: 'messages',
+      label: t('messages'),
+      badge: unreadCount || null,
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1.5" y="3" width="13" height="10" rx="1.5" />
+          <path d="M1.5 4.5L8 9l6.5-4.5" />
         </svg>
       ),
     },
@@ -591,6 +631,141 @@ export default function AdminDashboard() {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Messages */}
+      {section === 'messages' && (
+        <div className="space-y-5">
+          <h1 className="text-[1.25rem] font-semibold text-sand-950 mb-5">
+            {t('contactMessages')}
+          </h1>
+          <div className="flex gap-px rounded-soft overflow-hidden border border-sand-200 bg-sand-200">
+            <MetricTile label={t('totalMessages')} value={contactMessages.length} />
+            <MetricTile label={t('unreadMessages')} value={unreadCount} accent={unreadCount > 0} />
+            <MetricTile label={t('readMessages')} value={contactMessages.length - unreadCount} />
+          </div>
+          <div className="border border-sand-200 rounded-soft overflow-hidden">
+            {contactMessages.length === 0 ? (
+              <div className="py-12 text-center">
+                <svg className="mx-auto mb-3 text-sand-300" width="40" height="40" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1.5" y="3" width="13" height="10" rx="1.5" />
+                  <path d="M1.5 4.5L8 9l6.5-4.5" />
+                </svg>
+                <p className="text-[0.875rem] text-sand-500">{t('noMessages')}</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-sand-100">
+                {contactMessages.map((msg) => {
+                  const isExpanded = expandedMessageId === msg._id;
+                  return (
+                    <div
+                      key={msg._id}
+                      className={`transition-colors ${
+                        !msg.isRead ? 'bg-primary-50/40' : 'bg-sand-50'
+                      }`}
+                    >
+                      {/* Clickable row header */}
+                      <button
+                        onClick={() => {
+                          setExpandedMessageId(isExpanded ? null : msg._id);
+                          if (!msg.isRead) handleMarkAsRead(msg._id);
+                        }}
+                        className="w-full text-left px-4 py-3 flex items-center gap-4 hover:bg-sand-100/60 transition-colors"
+                      >
+                        {/* Unread dot */}
+                        <span className="shrink-0 w-2.5 h-2.5 flex items-center justify-center">
+                          {!msg.isRead && (
+                            <span className="block w-2 h-2 rounded-full bg-primary-500" />
+                          )}
+                        </span>
+                        {/* Name & Subject */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[0.85rem] truncate ${
+                            !msg.isRead
+                              ? 'font-bold text-sand-950'
+                              : 'font-medium text-sand-800'
+                          }`}>
+                            {msg.name}
+                            <span className="mx-2 text-sand-300">·</span>
+                            <span className={`${
+                              !msg.isRead ? 'font-semibold text-sand-800' : 'font-normal text-sand-600'
+                            }`}>
+                              {msg.subject}
+                            </span>
+                          </p>
+                          <p className="text-[0.74rem] text-sand-500 truncate mt-0.5">
+                            {msg.message}
+                          </p>
+                        </div>
+                        {/* Date */}
+                        <span className="shrink-0 text-[0.74rem] text-sand-500 tabular-nums">
+                          {formatDate(msg.createdAt)}
+                        </span>
+                        {/* Chevron */}
+                        <svg
+                          className={`shrink-0 w-4 h-4 text-sand-400 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
+                          viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        >
+                          <path d="M4 6l4 4 4-4" />
+                        </svg>
+                      </button>
+
+                      {/* Expanded content */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pt-1 ml-6 mr-4 border-t border-sand-100">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3 mt-3">
+                            <div>
+                              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-0.5">{t('from')}</p>
+                              <p className="text-[0.85rem] font-medium text-sand-900">{msg.name}</p>
+                            </div>
+                            <div>
+                              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-0.5">{t('email')}</p>
+                              <a href={`mailto:${msg.email}`} className="text-[0.85rem] text-primary-600 hover:underline">{msg.email}</a>
+                            </div>
+                            <div>
+                              <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-0.5">{t('phone')}</p>
+                              <p className="text-[0.85rem] text-sand-900">
+                                {msg.phone ? (
+                                  <a href={`tel:${msg.phone}`} className="text-primary-600 hover:underline">{msg.phone}</a>
+                                ) : (
+                                  <span className="text-sand-400 italic">{t('noPhone')}</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mb-4">
+                            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500 mb-1">{t('message')}</p>
+                            <div className="bg-white border border-sand-200 rounded-subtle p-3 text-[0.85rem] text-sand-800 leading-relaxed whitespace-pre-wrap">
+                              {msg.message}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {!msg.isRead && (
+                              <button
+                                onClick={() => handleMarkAsRead(msg._id)}
+                                className="text-[0.75rem] font-semibold text-primary-600 bg-primary-50 border border-primary-200 px-3 py-1.5 rounded-subtle hover:bg-primary-100 transition-colors"
+                              >
+                                {t('markAsRead')}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteMessage(msg._id)}
+                              className="text-[0.75rem] font-semibold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-subtle hover:bg-red-100 transition-colors"
+                            >
+                              {t('deleteMessage')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

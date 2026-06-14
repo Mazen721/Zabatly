@@ -100,10 +100,12 @@ def _normalize_digits(s: str) -> str:
 # National ID Validator
 # ============================================================
 
-def validate_national_id(fields: dict) -> list[str]:
+def validate_national_id(fields: dict) -> dict:
     """
     Validate an Egyptian National ID.
-    Returns a list of validation error strings (empty = valid).
+    Returns a dict with:
+      - 'errors': list of hard validation errors (structural impossibilities)
+      - 'warnings': list of soft warnings (likely OCR errors, not fraud)
     
     14-digit format: C YYMMDD GG SSSS K
     - C: Century (2=1900s, 3=2000s)
@@ -113,11 +115,12 @@ def validate_national_id(fields: dict) -> list[str]:
     - K: Check digit
     """
     errors = []
+    warnings = []
     nid = fields.get("national_id_number", "")
 
     if not nid:
         errors.append("National ID number is missing.")
-        return errors
+        return {"errors": errors, "warnings": warnings}
 
     # Normalize Arabic-Indic digits
     nid = _normalize_digits(nid)
@@ -126,26 +129,20 @@ def validate_national_id(fields: dict) -> list[str]:
 
     if len(nid) != 14:
         errors.append(f"National ID must be exactly 14 digits, got {len(nid)}: '{nid}'")
-        return errors
+        return {"errors": errors, "warnings": warnings}
 
     if not nid.isdigit():
         errors.append(f"National ID must contain only digits: '{nid}'")
-        return errors
+        return {"errors": errors, "warnings": warnings}
 
-    # Checksum validation (digit 14)
-    weights = [2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
-    total_sum = sum(int(nid[i]) * weights[i] for i in range(13))
-    remainder = total_sum % 11
-    digit14 = int(nid[13])
-    if remainder >= 10:
-        errors.append("Invalid National ID checksum.")
-    elif remainder != digit14:
-        errors.append(f"Invalid National ID checksum. Digit 14 is {digit14}, but calculated checksum is {remainder}.")
+    # Track structural checks for lenient checksum handling
+    structural_ok = True
 
     # Century digit
     century_digit = nid[0]
     if century_digit not in ("2", "3"):
         errors.append(f"Invalid century digit '{century_digit}'. Expected 2 (1900s) or 3 (2000s).")
+        structural_ok = False
 
     # Date of birth extraction
     yy = nid[1:3]
@@ -161,43 +158,76 @@ def validate_national_id(fields: dict) -> list[str]:
         # Sanity: should be in the past and person should be alive (not before 1900)
         if dob > date.today():
             errors.append(f"Date of birth {dob} is in the future — impossible.")
+            structural_ok = False
         if dob.year < 1900:
             errors.append(f"Date of birth year {dob.year} is before 1900 — unlikely.")
+            structural_ok = False
     except ValueError:
         errors.append(f"Invalid date of birth in NID: {year}-{mm}-{dd}")
+        structural_ok = False
 
     # Governorate code
     gov_code = nid[7:9]
     if gov_code not in GOVERNORATE_CODES:
         errors.append(f"Invalid governorate code '{gov_code}' in NID. Not a known Egyptian governorate.")
+        structural_ok = False
+
+    # Checksum validation (digit 14)
+    # IMPORTANT: Checksum failures are treated as WARNINGS, not errors.
+    # OCR commonly misreads 1 digit out of 14, which fails the checksum.
+    # If all other structural checks pass, this is likely an OCR error,
+    # not a fraudulent document. Route to admin review instead of rejecting.
+    weights = [2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+    total_sum = sum(int(nid[i]) * weights[i] for i in range(13))
+    remainder = total_sum % 11
+    digit14 = int(nid[13])
+    checksum_valid = True
+    if remainder >= 10:
+        checksum_valid = False
+    elif remainder != digit14:
+        checksum_valid = False
+
+    if not checksum_valid:
+        if structural_ok:
+            # All other checks pass — likely an OCR misread, not fraud
+            warnings.append(
+                f"CHECKSUM_MISMATCH_OCR: NID checksum failed (digit 14 is {digit14}, "
+                f"calculated {remainder}). This is likely an OCR misread of one digit. "
+                f"Route to admin review."
+            )
+            logger.info(f"NID checksum mismatch (likely OCR error): expected {remainder}, got {digit14}")
+        else:
+            # Other structural issues too — more suspicious
+            errors.append("Invalid National ID checksum.")
 
     # Gender check (digits 10-13, the serial)
     serial = nid[9:13]
     gender_from_nid = "male" if int(serial) % 2 == 1 else "female"
     
-    # Cross-check with extracted gender field
+    # Cross-check with extracted gender field — treat as warning, not error
+    # OCR can misread gender text on the card
     extracted_gender = fields.get("gender", "").lower().strip()
     if extracted_gender and extracted_gender in ("male", "female"):
         if extracted_gender != gender_from_nid:
-            errors.append(
+            warnings.append(
                 f"Gender mismatch: NID serial indicates '{gender_from_nid}' "
-                f"but extracted gender is '{extracted_gender}'."
+                f"but extracted gender is '{extracted_gender}'. May be OCR error."
             )
 
-    # Cross-check DOB with extracted date_of_birth field
+    # Cross-check DOB with extracted date_of_birth field — treat as warning
     extracted_dob = _parse_date_flexible(fields.get("date_of_birth"))
     if extracted_dob:
         try:
             nid_dob = date(year, month, day)
             if extracted_dob != nid_dob:
-                errors.append(
+                warnings.append(
                     f"DOB mismatch: NID encodes {nid_dob.isoformat()} "
-                    f"but extracted DOB is {extracted_dob.isoformat()}."
+                    f"but extracted DOB is {extracted_dob.isoformat()}. May be OCR error."
                 )
         except ValueError:
             pass  # Already flagged above
 
-    return errors
+    return {"errors": errors, "warnings": warnings}
 
 
 # ============================================================
@@ -249,10 +279,12 @@ def validate_driving_license(fields: dict) -> list[str]:
         # Normalize digits and strip spaces/dashes
         license_num = _normalize_digits(str(license_num)).strip()
         license_num = re.sub(r"[\s\-]", "", license_num)
-        if not license_num.isdigit():
-            errors.append("Driving license number must contain only digits.")
-        elif not (7 <= len(license_num) <= 10):
-            errors.append(f"Egyptian driving license number must be between 7 and 10 digits, got {len(license_num)}.")
+        # Allow alphanumeric — some licenses have letter prefixes
+        cleaned = re.sub(r"[^a-zA-Z0-9]", "", license_num)
+        if len(cleaned) < 5:
+            errors.append(f"Driving license number seems too short: '{license_num}'.")
+        elif len(cleaned) > 15:
+            errors.append(f"Driving license number seems too long: '{license_num}'.")
 
     # Validate license type
     license_type = (fields.get("license_type") or "").strip().lower()
@@ -314,14 +346,30 @@ _VALIDATORS = {
 def validate_document(doc_type: str, fields: dict) -> dict:
     """
     Run the appropriate validator for the given document type.
-    Returns {"is_valid": bool, "errors": list[str]}.
+    Returns {"is_valid": bool, "errors": list[str], "warnings": list[str]}.
+    
+    For national_id, the validator returns a dict with errors and warnings.
+    For other doc types, the validator returns a list of errors.
+    Warnings are soft issues (like checksum mismatches) that should route
+    to admin review rather than auto-rejection.
     """
     validator = _VALIDATORS.get(doc_type)
     if not validator:
-        return {"is_valid": True, "errors": []}
+        return {"is_valid": True, "errors": [], "warnings": []}
 
-    errors = validator(fields)
+    result = validator(fields)
+
+    # national_id validator returns a dict with errors and warnings
+    if isinstance(result, dict):
+        errors = result.get("errors", [])
+        warnings = result.get("warnings", [])
+    else:
+        # Other validators return a plain list of errors
+        errors = result
+        warnings = []
+
     return {
         "is_valid": len(errors) == 0,
         "errors": errors,
+        "warnings": warnings,
     }

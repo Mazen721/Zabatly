@@ -1,9 +1,10 @@
 {
   "assistant": "مساعد زبطلي الذكي",
+  "assistantShort": "زبطلي AI",
   "assistantIntro": "قوله الرحلة أو الميزانية أو نوع العربية اللي في بالك.",
   "initialMessage": "كام شخص هيسافروا، أو بتدور على عربية نوعها إيه؟",
   "connectionError": "في مشكلة في الاتصال. جرّب تاني بعد شوية.",
-  "thinking": "بفكر...",
+  "thinking": "بفكر",
   "placeholder": "اسأل عن العربيات، الأسعار، أي حاجة...",
   "closeChat": "اقفل الشات",
   "openChat": "افتح الشات",
@@ -20,5 +21,8 @@
   "recommendation": "ترشيح الذكاء الاصطناعي",
   "recommendedVehicles": "العربيات المقترحة:",
   "seats": "كراسي",
-  "perDay": "/اليوم"
+  "perDay": "/اليوم",
+  "viewDetails": "عرض التفاصيل",
+
+  "retry": "جرّب تاني"
 }

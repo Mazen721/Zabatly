@@ -83,29 +83,34 @@ router.get('/overview', protect, adminGuard, async (req, res) => {
         return acc;
       }, {});
 
-    const completedBookings = bookings.filter((booking) => booking.status === 'completed');
+    // Non-admin users for role-specific stats
+    const nonAdminUsers = users.filter((user) => user.role !== 'admin');
+    // Revenue: count all bookings that were actually paid
+    const paidBookings = bookings.filter((b) => b.paymentStatus === 'paid');
+    // Only count active (non-deleted) vehicles
+    const activeVehicles = vehicles.filter((v) => !v.isDeleted);
     const stats = {
       users: {
         total: users.length,
         byRole: countBy(users, 'role'),
-        verified: users.filter((user) => user.kyc_status === 'verified').length,
-        pendingKyc: users.filter((user) => user.kyc_status === 'pending').length,
+        verified: nonAdminUsers.filter((user) => user.kyc_status === 'verified').length,
+        pendingKyc: nonAdminUsers.filter((user) => user.kyc_status === 'pending' || user.kyc_status === 'manual_review').length,
       },
       drivers: {
-        total: users.filter((user) => user.role === 'driver').length,
-        available: users.filter((user) => user.role === 'driver' && user.isAvailable !== false).length,
-        busy: users.filter((user) => user.role === 'driver' && user.isAvailable === false).length,
+        total: nonAdminUsers.filter((user) => user.role === 'driver').length,
+        available: nonAdminUsers.filter((user) => user.role === 'driver' && user.isAvailable !== false && user.driverStatus !== 'offline').length,
+        busy: nonAdminUsers.filter((user) => user.role === 'driver' && (user.isAvailable === false || user.driverStatus === 'busy')).length,
       },
       vehicles: {
-        total: vehicles.length,
-        available: vehicles.filter((vehicle) => vehicle.isAvailable !== false).length,
-        rented: vehicles.filter((vehicle) => vehicle.isAvailable === false).length,
-        pendingKyc: vehicles.filter((vehicle) => vehicle.kyc_status === 'pending').length,
+        total: activeVehicles.length,
+        available: activeVehicles.filter((vehicle) => vehicle.isAvailable === true).length,
+        rented: activeVehicles.filter((vehicle) => vehicle.isAvailable === false).length,
+        pendingKyc: activeVehicles.filter((vehicle) => vehicle.kyc_status === 'pending' || vehicle.kyc_status === 'manual_review').length,
       },
       bookings: {
         total: bookings.length,
         byStatus: countBy(bookings, 'status'),
-        revenue: completedBookings.reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0),
+        revenue: paidBookings.reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0),
       },
       reviews: {
         total: reviews.length,
@@ -137,7 +142,7 @@ router.put('/review', protect, adminGuard, async (req, res) => {
       await User.findByIdAndUpdate(id, { $set: updateData });
 
     } else if (type === 'license') {
-      // ✅ FIX 5: Corrected update path for driving license status
+      // Corrected update path for driving license status
       const updateData = { 
         'driving_license.is_verified': status === 'verified',
         'driving_license.status': status 

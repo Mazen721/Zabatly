@@ -82,6 +82,33 @@ const shouldSendToAdminForInconclusiveExtraction = (docType, ocrData) => {
   );
 };
 
+const isChecksumOnlyFailure = (ocrData) => {
+  const flags = ocrData?.fraud_report?.flags || [];
+  const errors = ocrData?.validation?.errors || [];
+  const warnings = ocrData?.fraud_report?.recommendation || '';
+
+  // Check if the only issue is a checksum mismatch
+  const hasChecksumWarning = flags.some((f) => f.includes('CHECKSUM_MISMATCH_OCR'));
+  const hasValidationWarning = flags.some((f) => f.includes('VALIDATION_WARNING') && f.includes('CHECKSUM'));
+  const hasChecksumError = errors.some((e) =>
+    e.toLowerCase().includes('checksum') ||
+    e.toLowerCase().includes('invalid national id checksum')
+  );
+
+  // It's a checksum-only failure if:
+  // - There's a checksum warning/error
+  // - No other structural HIGH_RISK flags
+  const hasOtherHighRisk = flags.some((f) =>
+    (f.includes('EMPTY_EXTRACTION') ||
+     f.includes('VERY_LOW_EXTRACTION') ||
+     f.includes('TYPE_MISMATCH_HIGH') ||
+     f.includes('UNRECOGNIZED_DOCUMENT')) &&
+    !f.includes('CHECKSUM')
+  );
+
+  return (hasChecksumWarning || hasValidationWarning || hasChecksumError) && !hasOtherHighRisk;
+};
+
 const applyMinimalServerValidation = (ocrData, claimedDocType, provider) => {
   const response = {
     success: Boolean(ocrData?.success),
@@ -201,10 +228,34 @@ const runGeminiOcrFallback = async (filePath, docType) => {
   const geminiResponse = await generateGeminiVisionJson(OCR_MODEL, prompt, filePath, mimeType);
   let normalizedResponse = applyMinimalServerValidation(geminiResponse, docType, 'gemini');
 
+  // Retry on inconclusive extraction
   if (shouldSendToAdminForInconclusiveExtraction(docType, normalizedResponse)) {
+    console.log('Gemini OCR: Inconclusive extraction, retrying with focused prompt...');
     const retryPrompt = buildFocusedGeminiOcrPrompt(docType);
     const retryResponse = await generateGeminiVisionJson(OCR_MODEL, retryPrompt, filePath, mimeType);
     normalizedResponse = applyMinimalServerValidation(retryResponse, docType, 'gemini');
+  }
+
+  // Auto-retry on checksum-only failures (OCR likely misread one digit)
+  if (docType === 'national_id' && normalizedResponse.success !== false) {
+    const nid = normalizeDigits(normalizedResponse.fields?.national_id_number || '').replace(/[\s-]/g, '');
+    if (nid && /^\d{14}$/.test(nid)) {
+      const nidValidation = validateEgyptianNID(nid);
+      if (!nidValidation.isValid && nidValidation.errors.some((e) => e.toLowerCase().includes('checksum'))) {
+        console.log('Gemini OCR: NID checksum failed, doing focused re-read...');
+        const retryPrompt = buildFocusedGeminiOcrPrompt(docType);
+        const retryResponse = await generateGeminiVisionJson(OCR_MODEL, retryPrompt, filePath, mimeType);
+        const retryNormalized = applyMinimalServerValidation(retryResponse, docType, 'gemini');
+        const retryNid = normalizeDigits(retryNormalized.fields?.national_id_number || '').replace(/[\s-]/g, '');
+        if (retryNid && /^\d{14}$/.test(retryNid)) {
+          const retryValidation = validateEgyptianNID(retryNid);
+          if (retryValidation.isValid) {
+            console.log('Gemini OCR: Retry fixed the checksum! Using retry result.');
+            normalizedResponse = retryNormalized;
+          }
+        }
+      }
+    }
   }
 
   return normalizedResponse;
@@ -570,7 +621,34 @@ const verifyDocument = async (req, res) => {
         quality_score: ocrData.quality_score || null,
       });
 
-      return res.status(400).json({ message: 'AI could not read the document. Please use a clearer photo.' });
+      // Provide specific error messages based on the failure reason
+      const qualityScore = ocrData.quality_score || 0;
+      const fraudFlags = fraud_report?.flags || [];
+      let userMessage = 'AI could not read the document. Please try the following:';
+      const suggestions = [];
+
+      if (fraudFlags.some((f) => f.includes('IMAGE_TOO_DARK'))) {
+        suggestions.push('Take the photo in a well-lit area or use camera flash.');
+      } else if (fraudFlags.some((f) => f.includes('IMAGE_OVEREXPOSED'))) {
+        suggestions.push('Avoid direct light and glare on the document surface.');
+      } else if (fraudFlags.some((f) => f.includes('BLURRY') || f.includes('IMAGE_QUALITY'))) {
+        suggestions.push('Hold the camera steady and tap to focus before taking the photo.');
+      } else if (fraudFlags.some((f) => f.includes('IMAGE_TOO_SMALL'))) {
+        suggestions.push('Move the camera closer to the document or use a higher resolution camera.');
+      }
+
+      if (suggestions.length === 0) {
+        suggestions.push('Use a clear, well-lit photo of the document.');
+        suggestions.push('Make sure the entire document is visible and not cut off.');
+        suggestions.push('Avoid shadows and glare on the document.');
+      }
+
+      userMessage += ' ' + suggestions.join(' ');
+
+      return res.status(400).json({
+        message: userMessage,
+        suggestions,
+      });
     }
 
     // 5. Strict auto-reject / auto-verify logic.
@@ -579,6 +657,16 @@ const verifyDocument = async (req, res) => {
       newKycStatus = 'rejected';
     } else if (fraud_report.risk_level === 'CLEAN' && validation?.is_valid === true) {
       newKycStatus = 'verified';
+    }
+
+    // Route checksum-only failures to admin review instead of rejection
+    // This is the key fix: OCR often misreads 1 digit, causing checksum failure.
+    // The document is likely valid and should be reviewed by a human.
+    if (newKycStatus === 'rejected' && isChecksumOnlyFailure(ocrData)) {
+      console.log('Checksum-only failure detected — routing to manual_review instead of rejecting.');
+      newKycStatus = 'manual_review';
+      fraud_report.risk_level = 'MEDIUM_RISK';
+      fraud_report.recommendation = 'NID checksum failed, likely due to OCR misread. Routed to admin review.';
     }
 
     // Feature 7: Route low confidence to manual_review
@@ -716,10 +804,24 @@ const verifyDocument = async (req, res) => {
 
     // If the AI rejected it immediately for fraud, send a 400.
     if (newKycStatus === 'rejected') {
+      // Provide specific, actionable error messages
+      const rejectionErrors = validation?.errors || [];
+      const rejectionFlags = fraud_report?.flags || [];
+      let userReason = fraud_report.recommendation || 'Invalid document provided.';
+
+      // Simplify the reason for the user
+      if (rejectionFlags.some((f) => f.includes('EXPIRED_DOCUMENT'))) {
+        userReason = 'Your document has expired. Please upload a valid, non-expired document.';
+      } else if (rejectionFlags.some((f) => f.includes('TYPE_MISMATCH'))) {
+        userReason = 'The uploaded document does not match the selected document type. Please check and try again.';
+      } else if (rejectionFlags.some((f) => f.includes('UNRECOGNIZED_DOCUMENT'))) {
+        userReason = 'The AI could not recognize this as a valid Egyptian document. Please upload a clear photo of your official ID, passport, or license.';
+      }
+
       return res.status(400).json({
-        message: 'Document rejected due to fraud risk or invalid document type.',
-        reason: fraud_report.recommendation || 'Invalid document provided.',
-        errors: validation?.errors || [],
+        message: userReason,
+        reason: userReason,
+        errors: rejectionErrors,
       });
     }
 
