@@ -11,7 +11,7 @@ const requireVerifiedKyc = async (req, res, next) => {
 
     if (user.kyc_status !== 'verified') {
       return res.status(403).json({ 
-        message: 'Please complete identity verification before booking' 
+        message: 'Please complete identity verification before continuing.' 
       });
     }
 

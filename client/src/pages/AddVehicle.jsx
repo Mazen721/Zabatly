@@ -198,10 +198,14 @@ export default function AddVehicle() {
     }
 
     const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+    if (!userInfo?.token) {
+      setError(t('errors.submit'));
+      return;
+    }
+
     const config = {
       headers: {
         Authorization: `Bearer ${userInfo.token}`,
-        'Content-Type': 'multipart/form-data',
       },
     };
 
@@ -227,7 +231,10 @@ export default function AddVehicle() {
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err) {
       setError(
-        err.response?.data?.message || t('errors.submit')
+        err.response?.data?.error ||
+          err.response?.data?.message ||
+          err.message ||
+          t('errors.submit')
       );
       setLoadingState('');
     }
