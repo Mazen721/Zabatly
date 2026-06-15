@@ -4,6 +4,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const CHAT_MODEL = 'gemini-3.1-flash-lite';
 const OCR_MODEL = 'gemini-3.5-flash';
+const OCR_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 
 const MIME_TYPES = {
   '.jpg': 'image/jpeg',
@@ -60,16 +61,8 @@ const getImageMimeType = (filePath, fallback = 'image/jpeg') => {
   return MIME_TYPES[ext] || fallback;
 };
 
-const generateGeminiVisionJson = async (modelName, prompt, filePath, mimeType) => {
+const generateGeminiVisionJson = async (modelName, prompt, filePath, mimeType, useFallback = true) => {
   const genAI = getGeminiClient();
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-    },
-  });
-
   const imageBytes = fs.readFileSync(filePath);
 
   // Warn if image is very large — may cause slower processing
@@ -78,22 +71,43 @@ const generateGeminiVisionJson = async (modelName, prompt, filePath, mimeType) =
     console.warn(`Gemini OCR: Large image (${sizeMB.toFixed(1)}MB). Processing may be slower.`);
   }
 
-  const result = await model.generateContent([
-    prompt,
-    {
-      inlineData: {
-        data: imageBytes.toString('base64'),
-        mimeType: mimeType || getImageMimeType(filePath),
+  const tryModel = async (currentModelName) => {
+    const model = genAI.getGenerativeModel({
+      model: currentModelName,
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
       },
-    },
-  ]);
+    });
 
-  return parseGeminiJson(result.response.text());
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: imageBytes.toString('base64'),
+          mimeType: mimeType || getImageMimeType(filePath),
+        },
+      },
+    ]);
+
+    return parseGeminiJson(result.response.text());
+  };
+
+  try {
+    return await tryModel(modelName);
+  } catch (error) {
+    if (useFallback && modelName === OCR_MODEL) {
+      console.warn(`Gemini OCR with ${modelName} failed. Falling back to ${OCR_FALLBACK_MODEL}. Error: ${error.message}`);
+      return await tryModel(OCR_FALLBACK_MODEL);
+    }
+    throw error;
+  }
 };
 
 module.exports = {
   CHAT_MODEL,
   OCR_MODEL,
+  OCR_FALLBACK_MODEL,
   generateGeminiJson,
   generateGeminiVisionJson,
   getImageMimeType,

@@ -65,11 +65,9 @@ function validateChecksum(id) {
     sum += parseInt(id[i], 10) * weights[i];
   }
   const remainder = sum % 11;
-  if (remainder >= 10) {
-    return false;
-  }
+  const expectedDigit = (11 - remainder) % 10;
   const digit14 = parseInt(id[13], 10);
-  return remainder === digit14;
+  return expectedDigit === digit14;
 }
 
 function parseDateFlexible(dateStr) {
@@ -131,6 +129,7 @@ function crossCheckDOB(idNumber, extractedDOB) {
 
 function validateEgyptianNID(idNumber, extractedDOB) {
   const errors = [];
+  const warnings = [];
   const id = typeof idNumber === 'string' ? idNumber.replace(/[\s-]/g, '') : '';
 
   if (!id) {
@@ -165,7 +164,7 @@ function validateEgyptianNID(idNumber, extractedDOB) {
   }
 
   if (!validateChecksum(id)) {
-    errors.push('Invalid National ID checksum.');
+    warnings.push('National ID checksum could not be confirmed.');
   }
 
   if (extractedDOB && !crossCheckDOB(id, extractedDOB)) {
@@ -175,6 +174,7 @@ function validateEgyptianNID(idNumber, extractedDOB) {
   return {
     isValid: errors.length === 0,
     errors,
+    warnings,
     extractedDOB: parsedDOBStr
   };
 }

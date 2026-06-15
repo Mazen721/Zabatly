@@ -180,11 +180,10 @@ def validate_national_id(fields: dict) -> dict:
     weights = [2, 7, 6, 5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
     total_sum = sum(int(nid[i]) * weights[i] for i in range(13))
     remainder = total_sum % 11
+    expected_digit = (11 - remainder) % 10
     digit14 = int(nid[13])
     checksum_valid = True
-    if remainder >= 10:
-        checksum_valid = False
-    elif remainder != digit14:
+    if expected_digit != digit14:
         checksum_valid = False
 
     if not checksum_valid:
@@ -192,10 +191,10 @@ def validate_national_id(fields: dict) -> dict:
             # All other checks pass — likely an OCR misread, not fraud
             warnings.append(
                 f"CHECKSUM_MISMATCH_OCR: NID checksum failed (digit 14 is {digit14}, "
-                f"calculated {remainder}). This is likely an OCR misread of one digit. "
+                f"calculated {expected_digit}). This is likely an OCR misread of one digit. "
                 f"Route to admin review."
             )
-            logger.info(f"NID checksum mismatch (likely OCR error): expected {remainder}, got {digit14}")
+            logger.info(f"NID checksum mismatch (likely OCR error): expected {expected_digit}, got {digit14}")
         else:
             # Other structural issues too — more suspicious
             errors.append("Invalid National ID checksum.")
