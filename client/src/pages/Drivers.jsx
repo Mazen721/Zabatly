@@ -106,9 +106,6 @@ function DriverCard({ driver, onSelect, currentUser, t }) {
           <div className="min-w-0">
             <h2 className="truncate text-[1rem] font-semibold leading-tight text-sand-950">{driver.name}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="rounded bg-signal-100 px-1.5 py-0.5 text-[0.68rem] font-semibold text-signal-800">
-                {t('zabatlyPartner')}
-              </span>
               {verified && (
                 <span className="rounded bg-primary-50 px-1.5 py-0.5 text-[0.68rem] font-semibold text-primary-700">
                   {t('verified')}
@@ -139,9 +136,8 @@ function DriverCard({ driver, onSelect, currentUser, t }) {
         </p>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2">
         <Metric label={t('rating')} value={rating === t('new') ? t('new') : `${rating}/5`} />
-        <Metric label={t('reviewsLabel')} value={reviews > 0 ? reviews : t('noneYet')} />
         <Metric label={t('experience')} value={driver.drivingExperience || t('profile')} />
       </div>
 
@@ -491,10 +487,9 @@ export default function Drivers() {
                 </button>
               </div>
 
-              <div className="mt-5 grid grid-cols-3 gap-2">
+              <div className="mt-5 grid grid-cols-2 gap-2">
                 <Metric label={t('rate')} value={`${selectedDriver.dailyRate || 200} ${t('egp')}`} />
                 <Metric label={t('rating')} value={formatRating(selectedDriver.rating, t) === t('new') ? t('new') : `${formatRating(selectedDriver.rating, t)}/5`} />
-                <Metric label={t('reviewsLabel')} value={selectedDriver.numReviews || t('none')} />
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">

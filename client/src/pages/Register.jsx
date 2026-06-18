@@ -25,7 +25,7 @@ export default function Register() {
     city: '',
     phone: '',
     nationality: '',
-    preferredLanguage: 'English',
+    preferredLanguage: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     emergencyContactRelation: '',
@@ -132,7 +132,7 @@ export default function Register() {
           : {}),
       });
       localStorage.setItem('userInfo', JSON.stringify(data));
-      navigate('/');
+      navigate('/account-created');
     } catch (err) {
       setError(err.response?.data?.message || t('register.registrationFailed'));
     } finally {
@@ -277,14 +277,12 @@ export default function Register() {
                     <option value="">{t('register.selectGender')}</option>
                     <option value="male">{t('register.male')}</option>
                     <option value="female">{t('register.female')}</option>
-                    <option value="other">{t('register.other')}</option>
-                    <option value="prefer_not_to_say">{t('register.preferNotToSay')}</option>
                   </select>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <RegisterInput id="reg-city" label={t('register.currentCity')} value={accountDetails.city} placeholder={t('register.cityPlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, city: value }))} />
-                <RegisterInput id="reg-phone" label={t('register.phone')} type="tel" value={accountDetails.phone} placeholder={t('register.phonePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, phone: value }))} />
+                <RegisterInput id="reg-phone" label={t('register.phone')} type="tel" value={accountDetails.phone} placeholder={t('register.phonePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, phone: value.replace(/[^0-9+]/g, '') }))} />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <RegisterInput id="reg-nationality" label={t('register.nationality')} value={accountDetails.nationality} placeholder={t('register.nationalityPlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, nationality: value }))} />
@@ -292,7 +290,7 @@ export default function Register() {
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 <RegisterInput id="reg-emergency-name" label={t('register.emergencyContact')} value={accountDetails.emergencyContactName} placeholder={t('register.emergencyNamePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
-                <RegisterInput id="reg-emergency-phone" label={t('register.contactPhone')} type="tel" value={accountDetails.emergencyContactPhone} placeholder={t('register.emergencyPhonePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
+                <RegisterInput id="reg-emergency-phone" label={t('register.contactPhone')} type="tel" value={accountDetails.emergencyContactPhone} placeholder={t('register.emergencyPhonePlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactPhone: value.replace(/[^0-9+]/g, '') }))} />
                 <RegisterInput id="reg-emergency-relation" label={t('register.relation')} value={accountDetails.emergencyContactRelation} placeholder={t('register.relationPlaceholder')} onChange={(value) => setAccountDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
               </div>
             </fieldset>
@@ -356,14 +354,17 @@ export default function Register() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label htmlFor="driver-experience" className="block text-label text-sand-700 mb-1.5">{t('register.drivingExperience')}</label>
-                    <input
+                    <select
                       id="driver-experience"
-                      type="text"
-                      placeholder={t('register.experiencePlaceholder')}
                       value={driverDetails.drivingExperience}
                       onChange={(e) => setDriverDetails((prev) => ({ ...prev, drivingExperience: e.target.value }))}
-                      className="w-full bg-sand-100 border border-sand-200 text-sand-950 placeholder-sand-400 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
-                    />
+                      className="w-full bg-sand-100 border border-sand-200 text-sand-950 rounded-subtle px-4 py-3 text-[0.9rem] focus:outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 transition-colors duration-150"
+                    >
+                      <option value="">{t('register.experiencePlaceholder')}</option>
+                      <option value="1-4 years">1-4 years</option>
+                      <option value="5-10 years">5-10 years</option>
+                      <option value="10+ years">10+ years</option>
+                    </select>
                   </div>
                   <div>
                     <label htmlFor="driver-vehicle-types" className="block text-label text-sand-700 mb-1.5">{t('register.vehicleTypes')}</label>

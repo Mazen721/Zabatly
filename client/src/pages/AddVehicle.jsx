@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API } from '../config/api';
+import VerificationModal from '../components/VerificationModal';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import {
   EGYPT_COUNTRY,
@@ -65,6 +66,8 @@ export default function AddVehicle() {
   const { t, i18n } = useTranslation('addVehicle');
   const isRTL = i18n.language === 'ar';
   const navigate = useNavigate();
+  const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+  const needsVerification = !userInfo || userInfo.kyc_status !== 'verified';
   const [loadingState, setLoadingState] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -241,6 +244,7 @@ export default function AddVehicle() {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-sand-50 font-sans antialiased text-sand-950">
       {/* Top bar */}
       <div className="sticky top-0 z-30 bg-sand-50/90 backdrop-blur-md border-b border-sand-200">
@@ -724,5 +728,14 @@ export default function AddVehicle() {
         </form>
       </div>
     </div>
+    {needsVerification && (
+      <VerificationModal
+        open={true}
+        onClose={() => navigate(-1)}
+        role={userInfo?.role || 'agency'}
+        variant="required"
+      />
+    )}
+    </>
   );
 }

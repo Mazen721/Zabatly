@@ -20,6 +20,7 @@ import BookingSuccess from './pages/BookingSuccess';
 import UserPublicProfile from './pages/UserPublicProfile';
 import ContactUs from './pages/ContactUs';
 import AboutUs from './pages/AboutUs';
+import AccountCreated from './pages/AccountCreated';
 import LanguageSwitcher from './components/LanguageSwitcher';
 
 function getProfilePictureUrl(path) {
@@ -123,7 +124,7 @@ function AppShell() {
   const location = useLocation();
   const { t } = useTranslation('common');
   const isLanding = location.pathname === '/';
-  const isAuth = location.pathname === '/login' || location.pathname === '/register';
+  const isAuth = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/account-created';
   const isDashboard = ['/dashboard', '/admin', '/profile', '/add-vehicle'].includes(location.pathname);
   const isStaticPage = ['/contact', '/about'].includes(location.pathname);
   const hideChrome = isLanding || isAuth || isDashboard || isStaticPage;
@@ -140,6 +141,7 @@ function AppShell() {
 
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/account-created" element={<AccountCreated />} />
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/about" element={<AboutUs />} />

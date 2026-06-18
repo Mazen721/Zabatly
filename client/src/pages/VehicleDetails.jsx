@@ -11,6 +11,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { API } from '../config/api';
 import { getVehicleAreaLabel, getVehicleExactAddress } from '../data/egyptLocations';
+import VerificationModal from '../components/VerificationModal';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
@@ -193,6 +194,7 @@ export default function VehicleDetails() {
   const [completedBookingId, setCompletedBookingId] = useState(null);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState('');
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
 
   const ratingLabels = [t('poor'), t('fair'), t('good'), t('veryGood'), t('excellent')];
 
@@ -367,10 +369,12 @@ export default function VehicleDetails() {
     }
 
     if (userInfo.kyc_status !== 'verified') {
-      return navigate('/verify-identity');
+      setShowVerifyModal(true);
+      return;
     }
     if (!needsDriver && (!userInfo.driving_license || !userInfo.driving_license.is_verified)) {
-      return navigate('/verify-identity');
+      setShowVerifyModal(true);
+      return;
     }
     if (!startDate || !endDate) { setBookingError(t('selectTravelDates')); return; }
     if (new Date(startDate) > new Date(endDate)) { setBookingError(t('returnAfterPickup')); return; }
@@ -444,6 +448,13 @@ export default function VehicleDetails() {
   ];
 
   return (
+    <>
+    <VerificationModal
+      open={showVerifyModal}
+      onClose={() => setShowVerifyModal(false)}
+      role={userInfo?.role || 'user'}
+      variant="required"
+    />
     <div className="min-h-screen bg-sand-50">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-10 pt-6 pb-16">
 
@@ -799,14 +810,14 @@ export default function VehicleDetails() {
                 </button>
               ) : userInfo?.kyc_status !== 'verified' ? (
                 <button
-                  onClick={() => navigate('/verify-identity')}
+                  onClick={() => setShowVerifyModal(true)}
                   className="w-full bg-signal-500 text-primary-950 py-3 rounded-subtle text-[0.85rem] font-semibold hover:bg-signal-600 transition-colors"
                 >
                   {t('verifyIdentity')}
                 </button>
               ) : !needsDriver && (!userInfo.driving_license || !userInfo.driving_license.is_verified) ? (
                 <button
-                  onClick={() => navigate('/verify-identity')}
+                  onClick={() => setShowVerifyModal(true)}
                   className="w-full bg-signal-500 text-primary-950 py-3 rounded-subtle text-[0.85rem] font-semibold hover:bg-signal-600 transition-colors"
                 >
                   {t('verifyLicense')}
@@ -831,5 +842,6 @@ export default function VehicleDetails() {
         </div>
       </div>
     </div>
+    </>
   );
 }

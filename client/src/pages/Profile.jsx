@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardShell from '../components/dashboard/DashboardShell';
 import { API } from '../config/api';
 import { useTranslation } from 'react-i18next';
@@ -88,8 +88,10 @@ function createCroppedAvatar(sourceUrl, crop) {
 export default function Profile() {
   const { t } = useTranslation('profile');
   const navigate = useNavigate();
+  const location = useLocation();
+  const urlSection = new URLSearchParams(location.search).get('section');
   const [user, setUser] = useState(null);
-  const [section, setSection] = useState('account');
+  const [section, setSection] = useState(urlSection === 'verification' ? 'verification' : 'account');
 
   // Profile form
 
