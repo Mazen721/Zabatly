@@ -20,19 +20,19 @@ const slides = [
     title: 'Find Your Perfect Ride',
     subtitleArabic: 'المشوار عليك، والعربية المظبوطة علينا',
     body: 'Browse hundreds of verified vehicles across Egypt, sedans, SUVs, luxury, and more.',
-    image: require('../../../assets/images/onboarding_car.png'),
+    image: require('../../../assets/images/onboarding_car.jpg'),
   },
   {
     title: 'Book in Minutes, Drive Today',
     subtitleArabic: 'احجز في دقايق بأساليب دفع محلية مريحة',
     body: 'Simple booking flow, secure payments via Vodafone Cash or InstaPay.',
-    image: require('../../../assets/images/onboarding_calendar.png'),
+    image: require('../../../assets/images/onboarding_calendar.jpg'),
   },
   {
     title: 'Your Smart Rental Companion',
     subtitleArabic: 'اسأل زبطلي أي حاجة، الذكاء الاصطناعي هيلاقيلك أنسب عربية',
     body: 'Ask Zabatly anything, our AI finds the right car for your trip.',
-    image: require('../../../assets/images/onboarding_chat.png'),
+    image: require('../../../assets/images/onboarding_chat.jpg'),
   },
 ];
 
