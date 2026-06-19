@@ -96,10 +96,12 @@
     "bookingsDescription": "Current, upcoming, and expired rentals for your listed cars.",
     "emptyOwnerBookings": "No bookings for your vehicles yet.",
     "activeBookings": "Active Bookings",
+    "readyToStart": "Ready to Start",
     "upcomingBookings": "Upcoming Bookings",
     "expiredBookings": "Expired Bookings",
     "noPendingRequests": "No pending requests right now.",
     "noActiveBookings": "No active bookings right now.",
+    "noReadyToStart": "No rentals are ready to start right now.",
     "noUpcomingBookings": "No upcoming bookings.",
     "noExpiredBookings": "No expired bookings.",
     "totalRevenue": "Total Revenue",
@@ -114,6 +116,8 @@
     "endDate": "End date",
     "rentalEndsIn": "Rental ends in: {{time}}",
     "confirmReturn": "Confirm Return",
+    "startRent": "Start Rent",
+    "handoverReady": "Ready for handover",
     "autoConfirmed": "Auto-confirmed",
     "loadError": "Could not load dashboard data. Try again.",
     "updateError": "Failed to update booking status.",
@@ -143,7 +147,8 @@
     "activeRentalCount_plural": "{{count}} active rentals",
     "confirmedCount": "{{count}} confirmed booking",
     "confirmedCount_plural": "{{count}} confirmed bookings",
-    "viewBookings": "View bookings"
+    "viewBookings": "View bookings",
+    "exportPdf": "Export PDF"
   },
   "driver": {
     "requests": "Requests",

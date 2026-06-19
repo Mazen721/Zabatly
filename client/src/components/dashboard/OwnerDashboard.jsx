@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import DashboardShell from './DashboardShell';
 import PaymentProofLink from '../PaymentProofLink';
 import { API } from '../../config/api';
+import { exportOwnerReport } from '../../utils/pdfReports';
 
 const getImg = (v) =>
   v?.images?.length > 0
@@ -93,8 +94,8 @@ const ownerRentalAmount = (booking) => {
   return totalPrice > 0 ? Math.round(totalPrice / 1.1) : 0;
 };
 
-const isOwnerEarningBooking = (booking) =>
-  ['completed', 'active', 'confirmed'].includes(booking.status) || isPaidBooking(booking);
+// Earnings are only recognised once an admin has actually sent the agency payout.
+const isOwnerPaidOutBooking = (booking) => booking.payoutStatus === 'sent';
 
 const getBookingEnd = (booking) => getRentalEndDate(booking.endDate);
 
@@ -105,8 +106,11 @@ const isWithinBookingDates = (booking, date) => {
   return start <= date && end >= date;
 };
 
-const isCurrentOwnerRental = (booking, date) =>
-  booking.status === 'active' || (booking.status === 'confirmed' && isWithinBookingDates(booking, date));
+const isCurrentOwnerRental = (booking) =>
+  booking.status === 'active';
+
+const isReadyToStartOwnerRental = (booking, date) =>
+  booking.status === 'confirmed' && isWithinBookingDates(booking, date);
 
 const isUpcomingOwnerBooking = (booking, date) => {
   const start = booking.startDate ? new Date(booking.startDate) : null;
@@ -456,12 +460,13 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
   );
   const pendingRequests = myBookings.filter((b) => b.status === 'pending' && !isPaidBooking(b));
   const activeRentals = myBookings.filter((b) => isCurrentOwnerRental(b, now));
+  const readyToStartBookings = myBookings.filter((b) => isReadyToStartOwnerRental(b, now));
   const confirmedBookings = myBookings.filter((b) => b.status === 'confirmed');
   const completedBookings = myBookings.filter((b) => b.status === 'completed');
-  const paidBookings = myBookings.filter(isOwnerEarningBooking);
+  const paidOutBookings = myBookings.filter(isOwnerPaidOutBooking);
   const upcomingBookings = myBookings.filter((b) => isUpcomingOwnerBooking(b, now));
   const expiredBookings = myBookings.filter((b) => isExpiredOwnerBooking(b, now));
-  const revenue = paidBookings.reduce(
+  const revenue = paidOutBookings.reduce(
     (sum, b) => sum + ownerRentalAmount(b),
     0
   );
@@ -571,7 +576,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     {
       id: 'bookings',
       label: t('owner.bookings'),
-      badge: pendingRequests.length + activeRentals.length + upcomingBookings.length || null,
+      badge: pendingRequests.length + readyToStartBookings.length + activeRentals.length + upcomingBookings.length || null,
       icon: (
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2.5" y="3" width="11" height="10.5" rx="1.5" />
@@ -654,6 +659,37 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
     </div>
   ) : null;
 
+  const handleExportPdf = async () => {
+    const vehiclesForReport = vehicles.map((vehicle) => ({
+      ...vehicle,
+      bookingCount: myBookings.filter((booking) => booking.vehicle?._id === vehicle._id || booking.vehicle === vehicle._id).length,
+    }));
+    const withOwnerAmount = (booking) => ({
+      ...booking,
+      ownerAmount: ownerRentalAmount(booking),
+    });
+
+    await exportOwnerReport({
+      user,
+      vehicles: vehiclesForReport,
+      stats: {
+        listed: vehicles.length,
+        available: availableCount,
+        active: activeRentals.length,
+        revenue,
+      },
+      groups: [
+        pendingRequests.map(withOwnerAmount),
+        activeRentals.map(withOwnerAmount),
+        upcomingBookings.map(withOwnerAmount),
+        expiredBookings.map(withOwnerAmount),
+      ],
+      transactions: paidOutBookings.map(withOwnerAmount),
+      t,
+      locale,
+    });
+  };
+
   return (
     <DashboardShell
       navItems={navItems}
@@ -707,6 +743,21 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
         </div>
       )}
 
+      <div className="mb-5 flex justify-end">
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          className="inline-flex items-center gap-2 rounded-subtle bg-primary-800 px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-primary-900"
+        >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2v8" />
+            <path d="M5 7l3 3 3-3" />
+            <path d="M3 13.5h10" />
+          </svg>
+          {t('owner.exportPdf')}
+        </button>
+      </div>
+
       {/* Overview */}
       {section === 'overview' && (
         <div className="space-y-6">
@@ -743,7 +794,7 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                   <RequestRow
                     key={b._id}
                     booking={b}
-                    onAccept={() => updateStatus(b._id, 'active')}
+                    onAccept={() => updateStatus(b._id, 'confirmed')}
                     onDecline={() => updateStatus(b._id, 'cancelled')}
                   />
                 ))}
@@ -925,13 +976,22 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
                       <RequestRow
                         key={b._id}
                         booking={b}
-                        onAccept={() => updateStatus(b._id, 'active')}
+                        onAccept={() => updateStatus(b._id, 'confirmed')}
                         onDecline={() => updateStatus(b._id, 'cancelled')}
                       />
                     ))}
                   </div>
                 )}
               </section>
+              <BookingGroup
+                title={t('owner.readyToStart')}
+                empty={t('owner.noReadyToStart')}
+                bookings={readyToStartBookings}
+                now={now}
+                onAccept={updateStatus}
+                onDecline={updateStatus}
+                onComplete={updateStatus}
+              />
               <BookingGroup
                 title={t('owner.activeBookings')}
                 empty={t('owner.noActiveBookings')}
@@ -986,13 +1046,13 @@ export default function OwnerDashboard({ user, returnTarget = null }) {
               <span>{t('owner.date')}</span>
               <span className="text-right">{t('common.amount')}</span>
             </div>
-            {paidBookings.length === 0 ? (
+            {paidOutBookings.length === 0 ? (
               <div className="py-10 text-center text-[0.8125rem] text-sand-500">
                 {t('owner.noTransactions')}
               </div>
             ) : (
               <div className="divide-y divide-sand-100">
-                {paidBookings.map((b) => (
+                {paidOutBookings.map((b) => (
                   <div
                     key={b._id}
                     className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_100px] gap-2 md:gap-4 items-center px-4 py-3"
@@ -1105,6 +1165,7 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
   const paid = isPaidBooking(b);
   const canDecline = b.status === 'pending' && !paid;
   const canAccept = b.status === 'pending' && !paid;
+  const canStartRent = paid && b.status === 'confirmed' && isWithinBookingDates(b, now);
   const remaining = getRemainingText(b.endDate, now, t);
 
   return (
@@ -1141,9 +1202,11 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
                 <span className="mt-0.5 block font-semibold tabular-nums text-sand-800">{formatRentalDate(getRentalEndDate(b.endDate) || b.endDate, locale, t('common.notSet'))}</span>
               </div>
             </div>
-            <div className="mt-2 rounded-subtle border border-primary-100 bg-primary-50 px-3 py-2 text-[0.78rem] font-semibold tabular-nums text-primary-800">
-              {t('owner.rentalEndsIn', { time: remaining })}
-            </div>
+            {b.status === 'active' && (
+              <div className="mt-2 rounded-subtle border border-primary-100 bg-primary-50 px-3 py-2 text-[0.78rem] font-semibold tabular-nums text-primary-800">
+                {t('owner.rentalEndsIn', { time: remaining })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1168,6 +1231,14 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
               {t('common.decline')}
             </button>
           )}
+          {canStartRent && (
+            <button
+              onClick={onAccept}
+              className="text-[0.75rem] font-semibold bg-primary-800 text-white px-3.5 py-1.5 rounded-subtle hover:bg-primary-900 transition-colors"
+            >
+              {t('owner.startRent')}
+            </button>
+          )}
           {b.status === 'active' && b.renterFinished && (
             <button
               onClick={onComplete}
@@ -1178,7 +1249,7 @@ function BookingRow({ booking: b, now, onAccept, onDecline, onComplete }) {
           )}
           {paid && b.status === 'confirmed' && (
             <span className="text-[0.75rem] font-semibold text-sand-600">
-              {t('owner.autoConfirmed')}
+              {canStartRent ? t('owner.handoverReady') : t('owner.autoConfirmed')}
             </span>
           )}
         </div>

@@ -96,10 +96,12 @@
     "bookingsDescription": "الإيجارات الحالية والقادمة والمنتهية لعربياتك.",
     "emptyOwnerBookings": "لسه مفيش حجوزات لعربياتك.",
     "activeBookings": "حجوزات نشطة",
+    "readyToStart": "جاهز للبدء",
     "upcomingBookings": "حجوزات قادمة",
     "expiredBookings": "حجوزات منتهية",
     "noPendingRequests": "مفيش طلبات قيد الانتظار دلوقتي.",
     "noActiveBookings": "مفيش حجوزات نشطة دلوقتي.",
+    "noReadyToStart": "مفيش إيجارات جاهزة للبدء دلوقتي.",
     "noUpcomingBookings": "مفيش حجوزات قادمة.",
     "noExpiredBookings": "مفيش حجوزات منتهية.",
     "totalRevenue": "إجمالي الإيراد",
@@ -114,6 +116,8 @@
     "endDate": "تاريخ النهاية",
     "rentalEndsIn": "الإيجار ينتهي خلال: {{time}}",
     "confirmReturn": "أكد الإرجاع",
+    "startRent": "ابدأ الإيجار",
+    "handoverReady": "جاهز لتسليم العربية",
     "autoConfirmed": "متأكد تلقائيًا",
     "loadError": "معرفناش نحمّل بيانات الداشبورد. جرّب تاني.",
     "updateError": "فشل تحديث حالة الحجز.",
@@ -143,7 +147,8 @@
     "activeRentalCount_plural": "{{count}} إيجار نشط",
     "confirmedCount": "{{count}} حجز مؤكد",
     "confirmedCount_plural": "{{count}} حجز مؤكد",
-    "viewBookings": "عرض الحجوزات"
+    "viewBookings": "عرض الحجوزات",
+    "exportPdf": "تصدير PDF"
   },
   "driver": {
     "requests": "الطلبات",

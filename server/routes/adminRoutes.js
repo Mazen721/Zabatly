@@ -63,7 +63,7 @@ router.get('/overview', protect, adminGuard, async (req, res) => {
         .lean(),
       Booking.find()
         .populate('renter', 'name email role')
-        .populate('owner', 'name email role')
+        .populate('owner', 'name email role payoutInfo')
         .populate('driver', 'name email role isAvailable')
         .populate('vehicle', 'make model year type price_per_day isAvailable')
         .sort({ createdAt: -1 })
@@ -111,6 +111,7 @@ router.get('/overview', protect, adminGuard, async (req, res) => {
         total: bookings.length,
         byStatus: countBy(bookings, 'status'),
         revenue: paidBookings.reduce((sum, booking) => sum + Number(booking.totalPrice || 0), 0),
+        netProfit: paidBookings.reduce((sum, booking) => sum + Number(booking.serviceFee || 0), 0),
       },
       reviews: {
         total: reviews.length,

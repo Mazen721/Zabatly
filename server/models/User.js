@@ -76,6 +76,11 @@ const userSchema = new mongoose.Schema({
     phone: { type: String, default: '' },
     relation: { type: String, default: '' },
   },
+  payoutInfo: {
+    method: { type: String, enum: ['vodafone_cash', 'instapay', 'bank_transfer', null], default: null },
+    accountNumber: { type: String, default: '' },
+    accountName: { type: String, default: '' },
+  },
   rating: { type: Number, default: 0 },
   numReviews: { type: Number, default: 0 },
   savedVehicles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }]

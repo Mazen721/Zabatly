@@ -35,6 +35,7 @@ const DashboardShell = ({
   user,
   bottomActions = [],
   returnTarget: propReturnTarget,
+  onBeforeNavigate,
   children,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -47,6 +48,12 @@ const DashboardShell = ({
   const handleLogout = () => {
     localStorage.removeItem('userInfo');
     navigate('/login');
+  };
+
+  const guardedNavigate = (path, e) => {
+    if (onBeforeNavigate && !onBeforeNavigate(path)) {
+      if (e) e.preventDefault();
+    }
   };
 
   const sidebar = (
@@ -77,6 +84,7 @@ const DashboardShell = ({
             <Link
               key={item.id}
               to={item.href}
+              onClick={(e) => guardedNavigate(item.href, e)}
               className="flex items-center gap-2.5 px-3 py-2 rounded-subtle text-[0.8125rem] font-medium text-primary-300 hover:text-white hover:bg-white/5 transition-colors duration-150"
             >
               {item.icon}
@@ -111,6 +119,7 @@ const DashboardShell = ({
         {user && (
           <Link
             to="/profile"
+            onClick={(e) => guardedNavigate('/profile', e)}
             className="mb-3 flex items-center gap-2.5 rounded-subtle px-3 py-2 text-primary-200 transition-colors duration-150 hover:bg-white/5 hover:text-white"
           >
             <ProfileAvatar user={user} />
@@ -124,6 +133,7 @@ const DashboardShell = ({
           <Link
             key={action.id}
             to={action.href}
+            onClick={(e) => guardedNavigate(action.href, e)}
             className="flex items-center gap-2.5 px-3 py-2 rounded-subtle text-[0.8125rem] font-medium text-primary-300 hover:text-white hover:bg-white/5 transition-colors duration-150"
           >
             {action.icon}
@@ -210,6 +220,7 @@ const DashboardShell = ({
           {returnTarget && (
             <Link
               to={returnTarget.href}
+              onClick={(e) => guardedNavigate(returnTarget.href, e)}
               className="mb-4 inline-flex items-center gap-2 rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2 text-[0.8125rem] font-semibold text-sand-700 transition-colors hover:bg-sand-200/70 hover:text-primary-800"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={isRTL ? 'scale-x-[-1]' : ''}>

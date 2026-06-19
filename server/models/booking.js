@@ -20,6 +20,14 @@ const bookingSchema = new mongoose.Schema({
     enum: ['unpaid', 'paid'],
     default: 'unpaid',
   },
+  payoutStatus: {
+    type: String,
+    enum: ['not_ready', 'pending', 'sent'],
+    default: 'not_ready',
+  },
+  payoutAmount: { type: Number, default: 0 },
+  payoutSentAt: { type: Date, default: null },
+  payoutSentBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   status: { 
     type: String, 
     enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'expired'], 

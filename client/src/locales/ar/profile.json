@@ -138,6 +138,24 @@
     "title": "?????? 2: ????? ??????? (OCR)",
     "subtitle": "???? ???? ??????? ??????? ??????? ??????? ?????????.",
     "scanning": "???? ?????...",
-    "verify": "???? ???? ???????"
+    "verify": "تحقق رخصة السيارة"
+  },
+  "unsavedTitle": "تغييرات غير محفوظة",
+  "unsavedMessage": "لديك تغييرات غير محفوظة. هل تريد حفظها قبل المغادرة؟",
+  "unsavedCancel": "إلغاء",
+  "unsavedDiscard": "عدم الحفظ",
+  "unsavedSave": "حفظ",
+  "payoutSettings": "إعدادات التحويل",
+  "payoutSettingsDescription": "اختار الحساب اللي زبطلي يحوّل عليه أرباح الإيجارات المكتملة.",
+  "payoutMethod": "طريقة التحويل",
+  "selectPayoutMethod": "اختار طريقة",
+  "payoutAccountNumber": "رقم الموبايل أو رقم الحساب",
+  "payoutAccountNumberPlaceholder": "01012345678 أو رقم الحساب",
+  "payoutAccountName": "اسم صاحب الحساب",
+  "payoutAccountNamePlaceholder": "الاسم المسجل على الحساب",
+  "payoutMethods": {
+    "vodafone_cash": "فودافون كاش",
+    "instapay": "إنستا باي",
+    "bank_transfer": "تحويل بنكي"
   }
 }

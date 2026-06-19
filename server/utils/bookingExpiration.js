@@ -9,7 +9,7 @@ const releaseExpiredBookings = async (now = new Date()) => {
   const expired = await Booking.find({
     status: { $in: blockingStatuses },
     endDate: { $ne: null, $lte: now },
-  }).select('_id vehicle driver status');
+  }).select('_id vehicle driver owner status paymentStatus rentalPrice');
 
   if (expired.length === 0) return { expiredCount: 0 };
 
@@ -17,10 +17,26 @@ const releaseExpiredBookings = async (now = new Date()) => {
   const inactiveIds = expired.filter((booking) => booking.status !== 'active').map((booking) => booking._id);
 
   if (activeIds.length > 0) {
+    const activeBookings = expired.filter((booking) => booking.status === 'active');
     await Booking.updateMany(
       { _id: { $in: activeIds } },
-      { $set: { status: 'completed', renterFinished: true, driverFinished: true } }
+      {
+        $set: {
+          status: 'completed',
+          renterFinished: true,
+          driverFinished: true,
+        },
+      }
     );
+    const eligiblePayouts = activeBookings.filter((booking) => booking.owner && booking.paymentStatus === 'paid');
+    if (eligiblePayouts.length > 0) {
+      await Booking.bulkWrite(eligiblePayouts.map((booking) => ({
+        updateOne: {
+          filter: { _id: booking._id },
+          update: { $set: { payoutStatus: 'pending', payoutAmount: Number(booking.rentalPrice || 0) } },
+        },
+      })));
+    }
   }
 
   if (inactiveIds.length > 0) {

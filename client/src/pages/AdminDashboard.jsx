@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import DashboardShell from '../components/dashboard/DashboardShell';
 import PaymentProofLink from '../components/PaymentProofLink';
 import { API } from '../config/api';
+import { exportAdminReport } from '../utils/pdfReports';
 
 const StatusBadge = ({ status }) => {
   const { t } = useTranslation('admin');
@@ -55,6 +56,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [paymentActionId, setPaymentActionId] = useState(null);
+  const [payoutActionId, setPayoutActionId] = useState(null);
   const [rejectId, setRejectId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectType, setRejectType] = useState('');
@@ -141,6 +145,38 @@ export default function AdminDashboard() {
       if (expandedMessageId === id) setExpandedMessageId(null);
     } catch {
       setError(t('reviewError'));
+    }
+  };
+
+  const handleExportPdf = async () => {
+    await exportAdminReport({ user, pending, platform, contactMessages, t });
+  };
+
+  const handlePaymentStatus = async (paymentId, status) => {
+    try {
+      setPaymentActionId(paymentId);
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.patch(`${API}/api/payments/${paymentId}/status`, { status }, config);
+      setSuccess(status === 'confirmed' ? t('paymentConfirmed') : t('paymentRejected'));
+      fetchPending();
+    } catch (err) {
+      setError(err.response?.data?.message || t('paymentReviewError'));
+    } finally {
+      setPaymentActionId(null);
+    }
+  };
+
+  const handlePayoutSent = async (bookingId) => {
+    try {
+      setPayoutActionId(bookingId);
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.patch(`${API}/api/bookings/${bookingId}/payout`, {}, config);
+      setSuccess(t('payoutSent'));
+      fetchPending();
+    } catch (err) {
+      setError(err.response?.data?.message || t('payoutSendError'));
+    } finally {
+      setPayoutActionId(null);
     }
   };
 
@@ -379,6 +415,27 @@ export default function AdminDashboard() {
           </button>
         </div>
       )}
+      {success && (
+        <div className="mb-5 flex items-center justify-between rounded-subtle border border-green-200 bg-green-50 px-4 py-2.5 text-[0.8125rem] text-green-800">
+          <span className="font-semibold">{success}</span>
+          <button onClick={() => setSuccess(null)} className="font-semibold underline">{t('dismiss')}</button>
+        </div>
+      )}
+
+      <div className="mb-5 flex justify-end">
+        <button
+          type="button"
+          onClick={handleExportPdf}
+          className="inline-flex items-center gap-2 rounded-subtle bg-primary-800 px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-primary-900"
+        >
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2v8" />
+            <path d="M5 7l3 3 3-3" />
+            <path d="M3 13.5h10" />
+          </svg>
+          {t('exportPdf')}
+        </button>
+      </div>
 
       {/* Overview */}
       {section === 'overview' && (
@@ -399,6 +456,7 @@ export default function AdminDashboard() {
             <MetricTile label={t('availableCars')} value={`${stats.vehicles?.available || 0}/${stats.vehicles?.total || 0}`} accent={(stats.vehicles?.available || 0) > 0} />
             <MetricTile label={t('activeBookings')} value={stats.bookings?.byStatus?.active || 0} accent={(stats.bookings?.byStatus?.active || 0) > 0} />
             <MetricTile label={t('revenue')} value={money(stats.bookings?.revenue)} />
+            <MetricTile label={t('netProfit')} value={money(stats.bookings?.netProfit)} accent />
           </div>
 
           {/* Quick verification preview */}
@@ -522,6 +580,59 @@ export default function AdminDashboard() {
             <MetricTile label={t('active')} value={stats.bookings?.byStatus?.active || 0} accent={(stats.bookings?.byStatus?.active || 0) > 0} />
             <MetricTile label={t('completed')} value={stats.bookings?.byStatus?.completed || 0} />
           </div>
+          <section className="overflow-hidden rounded-soft border border-sand-200" aria-labelledby="payment-review-title">
+            <div className="flex items-center justify-between gap-4 border-b border-sand-200 bg-sand-100 px-4 py-3">
+              <div>
+                <h2 id="payment-review-title" className="text-[0.95rem] font-semibold text-sand-900">{t('paymentReview')}</h2>
+                <p className="mt-0.5 text-[0.75rem] text-sand-500">{t('paymentReviewDescription')}</p>
+              </div>
+              <span className="rounded-subtle border border-signal-200 bg-signal-50 px-2 py-0.5 text-[0.7rem] font-semibold text-signal-700">
+                {platform.bookings.filter((booking) => booking.payment?.status === 'pending').length}
+              </span>
+            </div>
+            {platform.bookings.filter((booking) => booking.payment?.status === 'pending').length === 0 ? (
+              <p className="px-4 py-5 text-[0.8125rem] text-sand-500">{t('noPendingPayments')}</p>
+            ) : (
+              <div className="divide-y divide-sand-100">
+                {platform.bookings.filter((booking) => booking.payment?.status === 'pending').map((booking) => (
+                  <div key={booking._id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-[0.85rem] font-semibold text-sand-900">{booking.vehicle ? `${booking.vehicle.make} ${booking.vehicle.model}` : t('driverRequest')}</p>
+                      <p className="mt-0.5 text-[0.75rem] text-sand-500">{booking.renter?.name || t('unknown')} · {money(booking.payment?.amount || booking.totalPrice)}</p>
+                      <PaymentProofLink path={booking.payment?.proofUrl} />
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button type="button" disabled={paymentActionId === booking.payment?._id} onClick={() => handlePaymentStatus(booking.payment._id, 'confirmed')} className="rounded-subtle bg-primary-800 px-3 py-2 text-[0.75rem] font-semibold text-white transition-colors hover:bg-primary-900 disabled:opacity-50">{paymentActionId === booking.payment?._id ? t('processing') : t('confirmPayment')}</button>
+                      <button type="button" disabled={paymentActionId === booking.payment?._id} onClick={() => handlePaymentStatus(booking.payment._id, 'failed')} className="rounded-subtle border border-red-200 bg-red-50 px-3 py-2 text-[0.75rem] font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50">{t('rejectPayment')}</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          <section className="overflow-hidden rounded-soft border border-sand-200" aria-labelledby="payout-review-title">
+            <div className="border-b border-sand-200 bg-sand-100 px-4 py-3">
+              <h2 id="payout-review-title" className="text-[0.95rem] font-semibold text-sand-900">{t('payoutReview')}</h2>
+              <p className="mt-0.5 text-[0.75rem] text-sand-500">{t('payoutReviewDescription')}</p>
+            </div>
+            {platform.bookings.filter((booking) => booking.payoutStatus === 'pending').length === 0 ? (
+              <p className="px-4 py-5 text-[0.8125rem] text-sand-500">{t('noPendingPayouts')}</p>
+            ) : (
+              <div className="divide-y divide-sand-100">
+                {platform.bookings.filter((booking) => booking.payoutStatus === 'pending').map((booking) => {
+                  const payout = booking.owner?.payoutInfo;
+                  const payoutReady = payout?.method && payout?.accountNumber && payout?.accountName;
+                  return <div key={booking._id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 text-[0.8125rem] text-sand-700">
+                      <p className="font-semibold text-sand-900">{booking.owner?.name || t('unknown')} · {money(booking.payoutAmount)}</p>
+                      {payoutReady ? <p className="mt-1 text-sand-600">{t('method')}: {t(`payoutMethods.${payout.method}`)} · {t('account')}: {payout.accountNumber} · {t('name')}: {payout.accountName}</p> : <p className="mt-1 font-medium text-red-700">{t('payoutDetailsMissing')}</p>}
+                    </div>
+                    {payoutReady && <button type="button" disabled={payoutActionId === booking._id} onClick={() => handlePayoutSent(booking._id)} className="shrink-0 rounded-subtle bg-signal-500 px-3 py-2 text-[0.75rem] font-semibold text-primary-950 transition-colors hover:bg-signal-600 disabled:opacity-50">{payoutActionId === booking._id ? t('processing') : t('markPayoutSent')}</button>}
+                  </div>;
+                })}
+              </div>
+            )}
+          </section>
           <div className="border border-sand-200 rounded-soft overflow-hidden">
             <div className="hidden lg:grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_90px_110px] gap-4 bg-sand-100 px-4 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-sand-500">
               <span>{t('booking')}</span>

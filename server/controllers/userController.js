@@ -8,6 +8,8 @@ const toList = (value) =>
         .map((item) => item.trim())
         .filter(Boolean);
 
+const PAYOUT_METHODS = new Set(['vodafone_cash', 'instapay', 'bank_transfer']);
+
 // @desc    Update public profile (uses uploadProfilePhoto on the route)
 // @route   PUT /api/users/profile
 const updateProfile = async (req, res) => {
@@ -30,6 +32,25 @@ const updateProfile = async (req, res) => {
       phone: req.body.emergencyContactPhone ?? user.emergencyContact?.phone ?? '',
       relation: req.body.emergencyContactRelation ?? user.emergencyContact?.relation ?? '',
     };
+
+    const payoutFieldsProvided = ['payoutMethod', 'payoutAccountNumber', 'payoutAccountName']
+      .some((field) => Object.prototype.hasOwnProperty.call(req.body, field));
+    if (payoutFieldsProvided) {
+      if (user.role !== 'agency') {
+        return res.status(403).json({ message: 'Only agency accounts can update payout settings.' });
+      }
+
+      const method = req.body.payoutMethod || null;
+      const accountNumber = String(req.body.payoutAccountNumber || '').trim();
+      const accountName = String(req.body.payoutAccountName || '').trim();
+      if (!method && (accountNumber || accountName)) {
+        return res.status(400).json({ message: 'Select a payout method before saving account details.' });
+      }
+      if (method && (!PAYOUT_METHODS.has(method) || !accountNumber || !accountName)) {
+        return res.status(400).json({ message: 'Provide a valid payout method, account number, and account name.' });
+      }
+      user.payoutInfo = { method, accountNumber, accountName };
+    }
 
     if (req.file) {
       const url = req.file.path;
@@ -71,6 +92,7 @@ const updateProfile = async (req, res) => {
       nationality: updatedUser.nationality,
       preferredLanguage: updatedUser.preferredLanguage,
       emergencyContact: updatedUser.emergencyContact,
+      payoutInfo: updatedUser.payoutInfo,
       rating: updatedUser.rating,
       numReviews: updatedUser.numReviews,
       kyc_status: updatedUser.kyc_status,

@@ -186,6 +186,7 @@ const createBooking = async (req, res) => {
       serviceFee: zabatlyServiceFee,
       totalPrice: finalTotalPrice,
       paymentStatus: paymentConfirmed ? 'paid' : 'unpaid',
+      payoutAmount: bookingOwner ? vehicleRentalPrice : 0,
       status: paymentConfirmed ? 'confirmed' : 'pending',
       withDriver: withDriver || needsDriver || false,
       routeDescription,
@@ -332,10 +333,22 @@ const updateBookingStatus = async (req, res) => {
 
     if (status === 'active') {
       if (booking.vehicle && ownerId !== userId) {
-        return res.status(401).json({ message: 'Only the owner can accept this booking.' });
+        return res.status(401).json({ message: 'Only the owner can start this rental.' });
       }
       if (!booking.vehicle && driverId !== userId) {
-        return res.status(401).json({ message: 'Only the assigned driver can accept this ride.' });
+        return res.status(401).json({ message: 'Only the assigned driver can start this ride.' });
+      }
+
+      if (booking.status !== 'confirmed') {
+        return res.status(400).json({ message: 'Only confirmed bookings can be started.' });
+      }
+      if (booking.paymentStatus !== 'paid') {
+        return res.status(400).json({ message: 'The booking must be paid before the rental starts.' });
+      }
+
+      const now = new Date();
+      if (!booking.startDate || !booking.endDate || now < booking.startDate || now >= booking.endDate) {
+        return res.status(400).json({ message: 'This rental can only be started during its booked time.' });
       }
 
       // Feature 4: Verify driver has a verified driving license.
@@ -360,7 +373,7 @@ const updateBookingStatus = async (req, res) => {
 
       await createNotification(
         booking.renter,
-        'Your booking has been confirmed.',
+        'Your rental has started.',
         'booking_confirmed'
       );
     } else if (status === 'confirmed') {
@@ -385,6 +398,10 @@ const updateBookingStatus = async (req, res) => {
 
       booking.status = 'completed';
       booking.driverFinished = true;
+      if (booking.owner && booking.paymentStatus === 'paid') {
+        booking.payoutStatus = 'pending';
+        booking.payoutAmount = booking.payoutAmount || Number(booking.rentalPrice || 0);
+      }
       if (booking.vehicle) {
         await Vehicle.findByIdAndUpdate(booking.vehicle, { isAvailable: true });
       }
@@ -464,6 +481,10 @@ const finishRide = async (req, res) => {
 
     if (booking.driverFinished && booking.renterFinished) {
       booking.status = 'completed';
+      if (booking.owner && booking.paymentStatus === 'paid') {
+        booking.payoutStatus = 'pending';
+        booking.payoutAmount = booking.payoutAmount || Number(booking.rentalPrice || 0);
+      }
 
       if (booking.driver) {
         await User.findByIdAndUpdate(booking.driver, {
@@ -499,4 +520,41 @@ const finishRide = async (req, res) => {
   }
 };
 
-module.exports = { createBooking, getMyBookings, updateBookingStatus, finishRide, checkVehicleAvailability };
+// @desc    Admin: record a completed booking payout as sent
+// @route   PATCH /api/bookings/:id/payout
+const markPayoutSent = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized as an admin.' });
+    }
+
+    const booking = await Booking.findById(req.params.id).populate('owner', 'role payoutInfo');
+    if (!booking) return res.status(404).json({ message: 'Booking not found.' });
+    if (!booking.owner || booking.owner.role !== 'agency') {
+      return res.status(400).json({ message: 'This booking does not have an agency payout.' });
+    }
+    if (booking.status !== 'completed' || booking.paymentStatus !== 'paid' || booking.payoutStatus !== 'pending') {
+      return res.status(400).json({ message: 'This payout is not ready to be sent.' });
+    }
+    const { method, accountNumber, accountName } = booking.owner.payoutInfo || {};
+    if (!method || !accountNumber || !accountName) {
+      return res.status(400).json({ message: 'The agency has not completed payout settings.' });
+    }
+
+    booking.payoutStatus = 'sent';
+    booking.payoutSentAt = new Date();
+    booking.payoutSentBy = req.user._id;
+    await booking.save();
+    res.json({
+      _id: booking._id,
+      payoutStatus: booking.payoutStatus,
+      payoutAmount: booking.payoutAmount,
+      payoutSentAt: booking.payoutSentAt,
+      payoutSentBy: booking.payoutSentBy,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not mark payout as sent.', error: error.message });
+  }
+};
+
+module.exports = { createBooking, getMyBookings, updateBookingStatus, finishRide, checkVehicleAvailability, markPayoutSent };

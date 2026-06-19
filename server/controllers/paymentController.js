@@ -120,6 +120,10 @@ const updatePaymentStatus = async (req, res) => {
         if (booking.status === 'pending') {
           booking.status = 'confirmed';
         }
+        if (booking.status === 'completed' && booking.owner) {
+          booking.payoutStatus = 'pending';
+          booking.payoutAmount = booking.payoutAmount || Number(booking.rentalPrice || 0);
+        }
         await createNotification(
           payment.userId,
           'Your payment has been confirmed.',
@@ -156,7 +160,17 @@ const getPaymentByBooking = async (req, res) => {
     }
 
     const payment = await Payment.findOne({ bookingId: booking._id }).lean();
-    res.json(payment || null);
+    if (!payment) return res.json(null);
+
+    if (isAdmin) {
+      const bookingWithOwner = await Booking.findById(booking._id)
+        .populate('owner', 'name role payoutInfo')
+        .select('owner rentalPrice serviceFee totalPrice paymentStatus status payoutStatus payoutAmount payoutSentAt payoutSentBy')
+        .lean();
+      return res.json({ ...payment, booking: bookingWithOwner });
+    }
+
+    res.json(payment);
   } catch (error) {
     res.status(500).json({ message: 'Server Error' });
   }

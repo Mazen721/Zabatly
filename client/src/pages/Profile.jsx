@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardShell from '../components/dashboard/DashboardShell';
@@ -47,6 +47,14 @@ function getProfileDetails(user = {}) {
   };
 }
 
+function getPayoutDetails(user = {}) {
+  return {
+    method: user.payoutInfo?.method || '',
+    accountNumber: user.payoutInfo?.accountNumber || '',
+    accountName: user.payoutInfo?.accountName || '',
+  };
+}
+
 function createCroppedAvatar(sourceUrl, crop) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -92,6 +100,14 @@ export default function Profile() {
   const urlSection = new URLSearchParams(location.search).get('section');
   const [user, setUser] = useState(null);
   const [section, setSection] = useState(urlSection === 'verification' ? 'verification' : 'account');
+
+  // --- Unsaved changes tracking ---
+  const initialProfileRef = useRef(null);
+  const initialDriverRef = useRef(null);
+  const initialPayoutRef = useRef(null);
+  const initialPreviewRef = useRef(null);
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const pendingNavRef = useRef(null);
 
   // Profile form
 
@@ -215,6 +231,7 @@ export default function Profile() {
     contactDetails: '',
   });
   const [profileDetails, setProfileDetails] = useState(getProfileDetails());
+  const [payoutDetails, setPayoutDetails] = useState(getPayoutDetails());
 
   // KYC
   const [kycFile, setKycFile] = useState(null);
@@ -234,6 +251,7 @@ export default function Profile() {
     setUser(parsed);
     setDriverDetails(getDriverDetails(parsed));
     setProfileDetails(getProfileDetails(parsed));
+    setPayoutDetails(getPayoutDetails(parsed));
     setPreview(getProfilePictureUrl(parsed.profilePicture));
 
     const fetchFreshProfile = async () => {
@@ -245,9 +263,17 @@ export default function Profile() {
         localStorage.setItem('userInfo', JSON.stringify(fresh));
         setUser(fresh);
   
-        setDriverDetails(getDriverDetails(fresh));
-        setProfileDetails(getProfileDetails(fresh));
+        const fp = getProfileDetails(fresh);
+        const fd = getDriverDetails(fresh);
+        setDriverDetails(fd);
+        setProfileDetails(fp);
+        const payout = getPayoutDetails(fresh);
+        setPayoutDetails(payout);
         setPreview(getProfilePictureUrl(fresh.profilePicture));
+        initialProfileRef.current = fp;
+        initialDriverRef.current = fd;
+        initialPayoutRef.current = payout;
+        initialPreviewRef.current = getProfilePictureUrl(fresh.profilePicture);
       } catch {
         showToast(t('refreshError'), 'error');
       }
@@ -270,6 +296,77 @@ export default function Profile() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // --- Unsaved changes detection ---
+  const hasUnsavedChanges = useCallback(() => {
+    if (file || removeProfilePicture) return true;
+    if (initialProfileRef.current && JSON.stringify(profileDetails) !== JSON.stringify(initialProfileRef.current)) return true;
+    if (initialDriverRef.current && JSON.stringify(driverDetails) !== JSON.stringify(initialDriverRef.current)) return true;
+    if (initialPayoutRef.current && JSON.stringify(payoutDetails) !== JSON.stringify(initialPayoutRef.current)) return true;
+    return false;
+  }, [profileDetails, driverDetails, payoutDetails, file, removeProfilePicture]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (hasUnsavedChanges()) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
+
+  const handleSectionChange = (newSection) => {
+    if (section === 'account' && newSection !== 'account' && hasUnsavedChanges()) {
+      pendingNavRef.current = { type: 'section', target: newSection };
+      setShowUnsavedModal(true);
+      return;
+    }
+    setSection(newSection);
+  };
+
+  const handleBeforeNavigate = (path) => {
+    if (section === 'account' && hasUnsavedChanges()) {
+      pendingNavRef.current = { type: 'route', target: path };
+      setShowUnsavedModal(true);
+      return false;
+    }
+    return true;
+  };
+
+  const resetFormToInitial = () => {
+    if (initialProfileRef.current) setProfileDetails(initialProfileRef.current);
+    if (initialDriverRef.current) setDriverDetails(initialDriverRef.current);
+    if (initialPayoutRef.current) setPayoutDetails(initialPayoutRef.current);
+    setFile(null);
+    setRemoveProfilePicture(false);
+    if (localPreview) URL.revokeObjectURL(localPreview);
+    setLocalPreview(null);
+    setPreview(initialPreviewRef.current);
+  };
+
+  const proceedPendingNav = () => {
+    const p = pendingNavRef.current;
+    pendingNavRef.current = null;
+    if (!p) return;
+    if (p.type === 'route') navigate(p.target);
+    else setSection(p.target);
+  };
+
+  const handleUnsavedDiscard = () => {
+    resetFormToInitial();
+    setShowUnsavedModal(false);
+    setTimeout(proceedPendingNav, 0);
+  };
+
+  const handleUnsavedSave = async () => {
+    setShowUnsavedModal(false);
+    await handleSaveProfile({ preventDefault: () => {} });
+    proceedPendingNav();
+  };
+
+  const handleUnsavedCancel = () => {
+    setShowUnsavedModal(false);
+    pendingNavRef.current = null;
+  };
+
   // --- Profile Save ---
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -282,6 +379,11 @@ export default function Profile() {
     // Synchronize currentLocation with city and contactDetails with phone
     formData.append('currentLocation', profileDetails.city);
     formData.append('contactDetails', profileDetails.phone);
+    if (user.role === 'agency') {
+      formData.append('payoutMethod', payoutDetails.method);
+      formData.append('payoutAccountNumber', payoutDetails.accountNumber);
+      formData.append('payoutAccountName', payoutDetails.accountName);
+    }
 
     if (file) formData.append('profilePhoto', file);
     if (removeProfilePicture) formData.append('removeProfilePicture', 'true');
@@ -303,11 +405,21 @@ export default function Profile() {
       const { data } = await axios.put(`${API}/api/users/profile`, formData, config);
       localStorage.setItem('userInfo', JSON.stringify(data));
       setUser(data);
-      setDriverDetails(getDriverDetails(data));
-      setProfileDetails(getProfileDetails(data));
+      const sp = getProfileDetails(data);
+      const sd = getDriverDetails(data);
+      setDriverDetails(sd);
+      setProfileDetails(sp);
+      const payout = getPayoutDetails(data);
+      setPayoutDetails(payout);
       setPreview(getProfilePictureUrl(data.profilePicture));
       setFile(null);
       setRemoveProfilePicture(false);
+      initialProfileRef.current = sp;
+      initialDriverRef.current = sd;
+      initialPayoutRef.current = payout;
+      initialPreviewRef.current = getProfilePictureUrl(data.profilePicture);
+      if (localPreview) URL.revokeObjectURL(localPreview);
+      setLocalPreview(null);
       showToast(t('profileUpdated'));
     } catch (err) {
       showToast(err.response?.data?.message || t('profileSaveError'), 'error');
@@ -597,10 +709,11 @@ export default function Profile() {
     <DashboardShell
       navItems={navItems}
       activeSection={section}
-      onSectionChange={setSection}
+      onSectionChange={handleSectionChange}
       contextStrip={null}
       user={user}
       bottomActions={bottomActions}
+      onBeforeNavigate={handleBeforeNavigate}
     >
       {/* Toast */}
       {toast && (
@@ -612,6 +725,39 @@ export default function Profile() {
           }`}
         >
           {toast.message}
+        </div>
+      )}
+
+      {/* Unsaved changes modal */}
+      {showUnsavedModal && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-primary-950/45 px-4 py-4 sm:items-center" onClick={handleUnsavedCancel}>
+          <div className="w-full max-w-sm rounded-soft border border-sand-200 bg-sand-50 p-5 shadow-xl shadow-primary-950/15 animate-[profilePreviewIn_180ms_cubic-bezier(0.25,1,0.5,1)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-signal-100 text-signal-700">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 6v3M8 11h.01" />
+                  <path d="M6.86 2.57L1.21 12.14a1.33 1.33 0 0 0 1.14 2h11.3a1.33 1.33 0 0 0 1.14-2L9.14 2.57a1.33 1.33 0 0 0-2.28 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-[0.95rem] font-semibold text-sand-950">{t('unsavedTitle', 'Unsaved Changes')}</h2>
+                <p className="mt-1 text-[0.8125rem] text-sand-600 leading-relaxed">
+                  {t('unsavedMessage', 'You have unsaved changes. Would you like to save them before leaving?')}
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-sand-200 pt-4">
+              <button type="button" onClick={handleUnsavedCancel} className="rounded-subtle px-3.5 py-2 text-[0.8125rem] font-medium text-sand-500 transition-colors hover:text-sand-700 hover:bg-sand-100">
+                {t('unsavedCancel', 'Cancel')}
+              </button>
+              <button type="button" onClick={handleUnsavedDiscard} className="rounded-subtle border border-red-200 bg-red-50 px-3.5 py-2 text-[0.8125rem] font-semibold text-red-700 transition-colors hover:bg-red-100">
+                {t('unsavedDiscard', "Don't Save")}
+              </button>
+              <button type="button" onClick={handleUnsavedSave} className="rounded-subtle bg-primary-800 px-4 py-2 text-[0.8125rem] font-semibold text-white transition-colors hover:bg-primary-900">
+                {t('unsavedSave', 'Save')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -915,8 +1061,6 @@ export default function Profile() {
                   <option value="">{t('selectGender')}</option>
                   <option value="male">{t('male')}</option>
                   <option value="female">{t('female')}</option>
-                  <option value="other">{t('other')}</option>
-                  <option value="prefer_not_to_say">{t('preferNotToSay')}</option>
                 </select>
               </div>
             </div>
@@ -931,11 +1075,33 @@ export default function Profile() {
               <ProfileInput id="profile-language" label={t('preferredLanguage')} value={profileDetails.preferredLanguage} placeholder={t('languagePlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, preferredLanguage: value }))} />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-2 grid-cols-3 sm:gap-4 items-end">
               <ProfileInput id="profile-emergency-name" label={t('emergencyContact')} value={profileDetails.emergencyContactName} placeholder={t('namePlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactName: value }))} />
               <ProfileInput id="profile-emergency-phone" label={t('emergencyPhone')} type="tel" value={profileDetails.emergencyContactPhone} placeholder={t('phonePlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactPhone: value }))} />
               <ProfileInput id="profile-emergency-relation" label={t('emergencyRelation')} value={profileDetails.emergencyContactRelation} placeholder={t('relationPlaceholder')} onChange={(value) => setProfileDetails((prev) => ({ ...prev, emergencyContactRelation: value }))} />
             </div>
+
+            {user.role === 'agency' && (
+              <section className="space-y-4 border-t border-sand-200 pt-5" aria-labelledby="payout-settings-title">
+                <div>
+                  <h2 id="payout-settings-title" className="text-[0.95rem] font-semibold text-sand-900">{t('payoutSettings')}</h2>
+                  <p className="mt-1 text-[0.8125rem] leading-relaxed text-sand-500">{t('payoutSettingsDescription')}</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="payout-method" className="mb-1.5 block text-[0.8125rem] font-medium text-sand-700">{t('payoutMethod')}</label>
+                    <select id="payout-method" value={payoutDetails.method} onChange={(event) => setPayoutDetails((prev) => ({ ...prev, method: event.target.value }))} className="w-full rounded-subtle border border-sand-200 bg-sand-100 px-3 py-2.5 text-[0.875rem] text-sand-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
+                      <option value="">{t('selectPayoutMethod')}</option>
+                      <option value="vodafone_cash">{t('payoutMethods.vodafone_cash')}</option>
+                      <option value="instapay">{t('payoutMethods.instapay')}</option>
+                      <option value="bank_transfer">{t('payoutMethods.bank_transfer')}</option>
+                    </select>
+                  </div>
+                  <ProfileInput id="payout-account-number" label={t('payoutAccountNumber')} value={payoutDetails.accountNumber} placeholder={t('payoutAccountNumberPlaceholder')} onChange={(value) => setPayoutDetails((prev) => ({ ...prev, accountNumber: value }))} />
+                </div>
+                <ProfileInput id="payout-account-name" label={t('payoutAccountName')} value={payoutDetails.accountName} placeholder={t('payoutAccountNamePlaceholder')} onChange={(value) => setPayoutDetails((prev) => ({ ...prev, accountName: value }))} />
+              </section>
+            )}
 
             {user.role === 'driver' && (
               <div className="space-y-4 border-t border-sand-200 pt-4">

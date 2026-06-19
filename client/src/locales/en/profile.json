@@ -139,5 +139,23 @@
     "subtitle": "Upload the official car license for AI verification.",
     "scanning": "Scanning...",
     "verify": "Verify Car License"
+  },
+  "unsavedTitle": "Unsaved Changes",
+  "unsavedMessage": "You have unsaved changes. Would you like to save them before leaving?",
+  "unsavedCancel": "Cancel",
+  "unsavedDiscard": "Don't Save",
+  "unsavedSave": "Save",
+  "payoutSettings": "Payout Settings",
+  "payoutSettingsDescription": "Choose where Zabatly should send your completed rental earnings.",
+  "payoutMethod": "Payout method",
+  "selectPayoutMethod": "Select a method",
+  "payoutAccountNumber": "Phone number or account ID",
+  "payoutAccountNumberPlaceholder": "01012345678 or account ID",
+  "payoutAccountName": "Account holder name",
+  "payoutAccountNamePlaceholder": "Name registered on the account",
+  "payoutMethods": {
+    "vodafone_cash": "Vodafone Cash",
+    "instapay": "InstaPay",
+    "bank_transfer": "Bank Transfer"
   }
 }
