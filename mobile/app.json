@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Zabatly",
+    "slug": "zabatly",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "backgroundColor": "#0f1623",
+    "icon": "./assets/images/icon.png",
+    "scheme": "zabatly",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "icon": "./assets/images/icon.png"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FEFDFC",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.mazen721.mobile"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0f1623",
+          "android": {
+            "image": "./assets/images/splash-icon.png",
+            "imageWidth": 76
+          }
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5cde421b-c973-4e19-bf46-a17b315cbed2"
+      }
+    }
+  }
+}
