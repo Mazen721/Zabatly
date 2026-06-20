@@ -37,6 +37,9 @@ const bookingSchema = new mongoose.Schema({
   // 4. Driver Specific Logic
   withDriver: { type: Boolean, default: false }, // TRUE if using the Owner's provided driver
   routeDescription: { type: String }, // Used when requesting a Freelance Driver
+  // Records the driver's explicit decision and distinguishes accepted rides
+  // from older requests that were saved as confirmed too early.
+  driverAcceptedAt: { type: Date, default: null },
 
   // 5. Handshake Logic (Both must be true to complete the ride)
   renterFinished: { type: Boolean, default: false },

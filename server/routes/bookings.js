@@ -21,6 +21,8 @@ router.put('/finish/:id', protect, requireVerifiedKyc, finishRide);
 router.patch('/:id/payout', protect, markPayoutSent);
 
 // Route to update booking status (Accept/Decline)
-router.put('/:id', protect, requireVerifiedKyc, updateBookingStatus);
+// Drivers must be able to decline an incoming request. The controller applies
+// the stricter driving-license check when a driver accepts or starts a ride.
+router.put('/:id', protect, updateBookingStatus);
 
 module.exports = router;

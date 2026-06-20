@@ -121,7 +121,11 @@ export default function DriverDashboard({ user, returnTarget = null }) {
   const myJobs = bookings.filter(
     (b) => b.driver?._id === user._id || b.driver === user._id
   );
-  const pendingJobs = myJobs.filter((b) => b.status === 'pending' || b.status === 'confirmed');
+  const isAwaitingDriverDecision = (booking) =>
+    !booking.vehicle
+    && !booking.driverAcceptedAt
+    && ['pending', 'confirmed'].includes(booking.status);
+  const pendingJobs = myJobs.filter(isAwaitingDriverDecision);
   const activeJob = myJobs.find((b) => b.status === 'active');
   const completedJobs = myJobs.filter((b) => b.status === 'completed');
   const earnings = completedJobs.reduce(
@@ -129,8 +133,10 @@ export default function DriverDashboard({ user, returnTarget = null }) {
     0
   );
 
-  const hasBlockingJob = myJobs.some((b) => ['active', 'pending', 'confirmed'].includes(b.status));
-  const visibleDriverStatus = hasBlockingJob ? 'busy' : driverStatus;
+  const hasBlockingJob = myJobs.some(
+    (b) => b.status === 'active' || (b.status === 'confirmed' && (b.vehicle || b.driverAcceptedAt))
+  );
+  const visibleDriverStatus = hasBlockingJob ? 'busy' : pendingJobs.length > 0 ? 'online' : driverStatus;
   const visibleStatusStyle = driverStatusStyles[visibleDriverStatus] || driverStatusStyles.offline;
 
   const saveSettings = async (nextStatus = driverStatus) => {
@@ -151,8 +157,8 @@ export default function DriverDashboard({ user, returnTarget = null }) {
       stored.dailyRate = data.dailyRate;
       localStorage.setItem('userInfo', JSON.stringify(stored));
       setDriverStatus(data.driverStatus);
-    } catch {
-      setError(t('driver.saveError'));
+    } catch (err) {
+      setError(err.response?.data?.message || t('driver.saveError'));
     } finally {
       setSaving(false);
     }
@@ -175,8 +181,8 @@ export default function DriverDashboard({ user, returnTarget = null }) {
         localStorage.setItem('userInfo', JSON.stringify(stored));
         setDriverStatus('busy');
       }
-    } catch {
-      setError(t('driver.updateError'));
+    } catch (err) {
+      setError(err.response?.data?.message || t('driver.updateError'));
     }
   };
 
@@ -465,7 +471,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                   <JobRequestRow
                     key={b._id}
                     booking={b}
-                    onAccept={() => updateStatus(b._id, 'active')}
+                    onAccept={() => updateStatus(b._id, 'confirmed')}
                     onDecline={() => updateStatus(b._id, 'cancelled')}
                   />
                 ))}
@@ -509,7 +515,7 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                 <JobRequestRow
                   key={b._id}
                   booking={b}
-                  onAccept={() => updateStatus(b._id, 'active')}
+                  onAccept={() => updateStatus(b._id, 'confirmed')}
                   onDecline={() => updateStatus(b._id, 'cancelled')}
                 />
               ))}
@@ -571,6 +577,16 @@ export default function DriverDashboard({ user, returnTarget = null }) {
                     <span className="text-[0.875rem] font-semibold text-sand-900 tabular-nums">
                       {b.totalPrice?.toLocaleString()} {t('common.egp')}
                     </span>
+                    {b.status === 'confirmed' && b.driverAcceptedAt && (
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(b._id, 'active')}
+                        disabled={new Date(b.startDate) > now || new Date(b.endDate) <= now}
+                        className="justify-self-start rounded-subtle bg-primary-800 px-3 py-1.5 text-[0.75rem] font-semibold text-white transition-colors hover:bg-primary-900 disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-sand-500"
+                      >
+                        {t('owner.startRent')}
+                      </button>
+                    )}
                   </div>
                 ))}
             </div>

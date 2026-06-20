@@ -19,6 +19,8 @@ const { validateEgyptianNID } = require('../utils/egyptianIdValidator');
 
 const validTypes = ['national_id', 'passport', 'driver_license', 'car_license'];
 const adminReviewDocTypes = ['national_id', 'passport', 'driver_license'];
+// Temporary testing switch: set back to true when duplicate-document blocking should resume.
+const DUPLICATE_DOCUMENT_DETECTION_ENABLED = false;
 
 const requiredFieldsByDocType = {
   national_id: ['national_id_number'],
@@ -506,7 +508,7 @@ const verifyDocument = async (req, res) => {
 
     // Feature 3: Duplicate ID Detection
     let isDuplicate = false;
-    if (effectiveDocType === 'national_id' || effectiveDocType === 'passport') {
+    if (DUPLICATE_DOCUMENT_DETECTION_ENABLED && (effectiveDocType === 'national_id' || effectiveDocType === 'passport')) {
       const extractedNumber = fields.national_id_number || fields.document_number;
       if (extractedNumber) {
         const normalizedNumber = normalizeIdentifier(extractedNumber);
@@ -522,7 +524,7 @@ const verifyDocument = async (req, res) => {
         });
         if (duplicateUser) isDuplicate = true;
       }
-    } else if (effectiveDocType === 'driver_license') {
+    } else if (DUPLICATE_DOCUMENT_DETECTION_ENABLED && effectiveDocType === 'driver_license') {
       const extractedNumber = fields.license_number;
       if (extractedNumber) {
         const normalizedNumber = normalizeIdentifier(extractedNumber);
@@ -537,7 +539,7 @@ const verifyDocument = async (req, res) => {
         });
         if (duplicateUser) isDuplicate = true;
       }
-    } else if (effectiveDocType === 'car_license') {
+    } else if (DUPLICATE_DOCUMENT_DETECTION_ENABLED && effectiveDocType === 'car_license') {
       const extractedPlate = fields.plate_number;
       if (extractedPlate) {
         const normalizedPlate = normalizeIdentifier(extractedPlate);

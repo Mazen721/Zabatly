@@ -187,15 +187,14 @@ const createBooking = async (req, res) => {
       totalPrice: finalTotalPrice,
       paymentStatus: paymentConfirmed ? 'paid' : 'unpaid',
       payoutAmount: bookingOwner ? vehicleRentalPrice : 0,
-      status: paymentConfirmed ? 'confirmed' : 'pending',
+      // A direct driver booking always waits for the driver to accept it,
+      // even when card payment has already been confirmed.
+      status: bookingDriver ? 'pending' : (paymentConfirmed ? 'confirmed' : 'pending'),
       withDriver: withDriver || needsDriver || false,
       routeDescription,
     });
 
     await booking.save();
-    if (bookingDriver) {
-      await User.findByIdAndUpdate(bookingDriver, { isAvailable: false, driverStatus: 'busy' });
-    }
     scheduleNextBookingExpiry().catch((error) => console.error('Booking expiry schedule failed:', error.message));
 
     if (bookingOwner) {
@@ -377,7 +376,36 @@ const updateBookingStatus = async (req, res) => {
         'booking_confirmed'
       );
     } else if (status === 'confirmed') {
+      if (booking.vehicle && ownerId !== userId) {
+        return res.status(401).json({ message: 'Only the owner can accept this booking.' });
+      }
+      if (!booking.vehicle && driverId !== userId) {
+        return res.status(401).json({ message: 'Only the assigned driver can accept this ride.' });
+      }
+      const isLegacyUnacceptedDriverRequest = !booking.vehicle
+        && booking.driver
+        && booking.status === 'confirmed'
+        && !booking.driverAcceptedAt;
+      if (booking.status !== 'pending' && !isLegacyUnacceptedDriverRequest) {
+        return res.status(400).json({ message: 'Only pending bookings can be accepted.' });
+      }
+
+      if (!booking.vehicle && booking.driver) {
+        const acceptingDriver = await User.findById(req.user._id).select('driving_license');
+        if (!acceptingDriver?.driving_license?.is_verified) {
+          return res.status(400).json({ message: 'You must have a verified driving license to accept this trip.' });
+        }
+        await User.findByIdAndUpdate(booking.driver, {
+          isAvailable: false,
+          driverStatus: 'busy',
+          currentRide: booking._id,
+        });
+      }
+
       booking.status = 'confirmed';
+      if (!booking.vehicle && booking.driver) {
+        booking.driverAcceptedAt = new Date();
+      }
       await createNotification(
         booking.renter,
         'Your booking has been confirmed.',

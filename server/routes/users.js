@@ -8,7 +8,18 @@ const { verifyDocument } = require('../controllers/kycController');
 const { updateProfile } = require('../controllers/userController');
 
 const { uploadProfilePhoto, uploadKycDocument } = require('../middleware/uploadMiddleware');
-const { releaseExpiredBookings, blockingStatuses } = require('../utils/bookingExpiration');
+const { releaseExpiredBookings } = require('../utils/bookingExpiration');
+
+// A driver remains available while a request is waiting for their decision.
+// Only an accepted reservation or an active ride should make them busy.
+const acceptedDriverReservation = (driverId) => ({
+  driver: driverId,
+  endDate: { $gt: new Date() },
+  $or: [
+    { status: 'active' },
+    { status: 'confirmed', driverAcceptedAt: { $ne: null } },
+  ],
+});
 
 const getOptionalViewer = async (req) => {
   const header = req.headers.authorization || '';
@@ -81,9 +92,7 @@ router.get('/drivers', async (req, res) => {
     const [drivers, activeDriverIds] = await Promise.all([
       User.find(query).select('-password').sort({ isAvailable: -1, rating: -1 }).lean(),
       Booking.distinct('driver', {
-        status: { $in: blockingStatuses },
-        driver: { $ne: null },
-        endDate: { $gt: new Date() },
+        ...acceptedDriverReservation({ $ne: null }),
       }),
     ]);
     const activeDriverSet = new Set(activeDriverIds.map((id) => id.toString()));
@@ -115,11 +124,7 @@ router.put('/driver-settings', protect, async (req, res) => {
         return res.status(400).json({ message: 'Invalid driver status.' });
       }
 
-      const activeReservation = await Booking.exists({
-        driver: user._id,
-        status: { $in: blockingStatuses },
-        endDate: { $gt: new Date() },
-      });
+      const activeReservation = await Booking.exists(acceptedDriverReservation(user._id));
       if ((user.currentRide || activeReservation) && requestedStatus === 'online') {
         return res.status(400).json({ message: 'Finish your active reservation before going online.' });
       }
